@@ -12,7 +12,7 @@ trait MiniKV<K, V> {
 }
 
 #[derive(Debug)]
-struct HashMiniKV<K, V> {
+pub struct HashMiniKV<K, V> {
     store: HashMap<K, V>,
 }
 
@@ -59,7 +59,7 @@ mod tests {
     #[test]
     fn test_hash_minikv() {
         let mut store: HashMiniKV<String, u32> = MiniKV::new();
-        store.set("foo".to_string(), 5);
+        let _ = store.set("foo".to_string(), 5);
         assert_eq!(store.get(&"foo".to_string()).unwrap(), Some(&5));
         assert_eq!(store.get(&"bar".to_string()).unwrap(), None);
         assert_eq!(store.set("baz".to_string(), 7).unwrap(), None);
