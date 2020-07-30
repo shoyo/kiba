@@ -2,65 +2,47 @@ use minikv::HashMiniKV;
 use std::io::prelude::*;
 use std::net::{TcpListener, TcpStream};
 
-/// Serialization
-///
-/// MISP (MInikv Serialization Protocol)
-
-struct MispRequest {
-    op: Ops,
+#[derive(Debug, PartialEq)]
+struct Request {
+    op: Op,
 }
 
-enum Ops {
+#[derive(Debug, PartialEq)]
+enum Op {
     Ping,
-    Get(OpGet),
-    Set(OpSet),
+    Get { key: String },
+    Set { key: String, val: String },
 }
 
-struct OpGet {
-    key: String,
-}
-
-struct OpSet {
-    key: String,
-    val: String,
-}
-
-struct MispResponse {
+#[derive(Debug, PartialEq)]
+struct Response {
     ret: String,
 }
 
+#[derive(Debug, PartialEq)]
 enum Token {
     Ping,
     Get,
     Set,
-    Operand,
+    Operand(String),
 }
 
-fn parse(tokens: Vec<String>) -> MispRequest {
-    MispRequest { op: Ops::Ping }
+fn parse(tokens: Vec<Token>) -> Request {
+    Request { op: Op::Ping }
 }
 
 fn tokenize(bytes: &[u8]) -> Vec<Token> {
     let mut tokens = Vec::new();
-    let mut start = 0;
-    let mut idx = 0;
-    let mut is_ws = true;
-    while idx < bytes.len() {
-        if bytes[idx] == b' ' {
-            if !is_ws {
-                match &bytes[start..idx] {
-                    b"PING" | b"ping" => tokens.push(Token::Ping),
-                    b"GET" | b"get" => tokens.push(Token::Get),
-                    b"SET" | b"set" => tokens.push(Token::Set),
-                    _ => tokens.push(Token::Operand),
-                }
-                start = idx;
-            }
-            is_ws = true;
-        } else {
-            is_ws = false;
+    let text = std::str::from_utf8(bytes).unwrap();
+    let mut chunks = text.split_whitespace();
+
+    while let Some(chunk) = chunks.next() {
+        match chunk.to_uppercase().as_str() {
+            "PING" => tokens.push(Token::Ping),
+            "GET" => tokens.push(Token::Get),
+            "SET" => tokens.push(Token::Set),
+            _ => tokens.push(Token::Operand(chunk.to_string())),
         }
-        idx += 1;
     }
     tokens
 }
@@ -90,6 +72,47 @@ mod tests {
 
     #[test]
     fn test_tokenize() {
-        println!("foo");
+        assert_eq!(tokenize(b"PING    "), vec![Token::Ping]);
+        assert_eq!(
+            tokenize(b"SET foo bar"),
+            vec![
+                Token::Set,
+                Token::Operand("foo".to_string()),
+                Token::Operand("bar".to_string())
+            ]
+        );
+        assert_eq!(
+            tokenize(b"  GET    baz       "),
+            vec![Token::Get, Token::Operand("baz".to_string())]
+        );
+        assert_eq!(
+            tokenize(b" set time now"),
+            vec![
+                Token::Set,
+                Token::Operand("time".to_string()),
+                Token::Operand("now".to_string()),
+            ]
+        );
+        assert_eq!(
+            tokenize(b"is invalid request"),
+            vec![
+                Token::Operand("is".to_string()),
+                Token::Operand("invalid".to_string()),
+                Token::Operand("request".to_string())
+            ]
+        );
+    }
+
+    #[test]
+    fn test_parse() {
+        assert_eq!(parse(vec![Token::Ping]), Request { op: Op::Ping });
+        assert_eq!(
+            parse(vec![Token::Get, Token::Operand("foo".to_string())]),
+            Request {
+                op: Op::Get {
+                    key: "foo".to_string()
+                }
+            }
+        );
     }
 }
