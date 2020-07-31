@@ -1,6 +1,6 @@
 use kiva::{HashStore, Store};
-use std::io::prelude::*;
-use std::net::{TcpListener, TcpStream};
+use tokio::net::{TcpListener, TcpStream};
+use tokio::prelude::*;
 
 #[derive(Debug, PartialEq)]
 struct Request {
@@ -30,7 +30,7 @@ enum Token {
 #[derive(Debug)]
 struct ParserError(String);
 
-fn parse_tokens(tokens: Vec<Token>) -> Result<Request, ParserError> {
+async fn parse_tokens(tokens: Vec<Token>) -> Result<Request, ParserError> {
     let op = &tokens[0];
     let argc = tokens.len();
     match op {
@@ -84,7 +84,7 @@ fn parse_tokens(tokens: Vec<Token>) -> Result<Request, ParserError> {
     }
 }
 
-fn tokenize(bytes: &[u8]) -> Vec<Token> {
+async fn tokenize(bytes: &[u8]) -> Vec<Token> {
     let mut tokens = Vec::new();
     let text = std::str::from_utf8(bytes).unwrap();
     let mut chunks = text
@@ -102,14 +102,14 @@ fn tokenize(bytes: &[u8]) -> Vec<Token> {
     tokens
 }
 
-fn parse_request(bytes: &[u8]) -> Request {
-    let tokens = tokenize(bytes);
-    let req = parse_tokens(tokens).unwrap();
+async fn parse_request(bytes: &[u8]) -> Request {
+    let tokens = tokenize(bytes).await;
+    let req = parse_tokens(tokens).await.unwrap();
     println!("{:?}", req);
     req
 }
 
-fn exec_request(req: Request, store: &mut HashStore<String, String>) -> Response {
+async fn exec_request(req: Request, store: &mut HashStore<String, String>) -> Response {
     match req.op {
         Op::Ping => {
             return Response {
@@ -138,38 +138,42 @@ fn exec_request(req: Request, store: &mut HashStore<String, String>) -> Response
     }
 }
 
-fn handle_connection(mut stream: TcpStream) {
+async fn handle_connection(mut stream: TcpStream) {
     // TEMP: initialiize new kv-store for each connection
     let mut store: HashStore<String, String> = Store::new();
 
     loop {
         let mut buf = [0; 128];
-        let _ = stream.read(&mut buf);
+        stream.read(&mut buf[..]).await;
 
-        let req = parse_request(&buf);
-        let resp = exec_request(req, &mut store);
+        let req = parse_request(&buf).await;
+        let resp = exec_request(req, &mut store).await;
 
         println!("{:?}", resp);
 
-        let _ = stream.write(resp.body.as_bytes());
+        stream.write_all(resp.body.as_bytes()).await;
     }
 }
 
-fn main() -> std::io::Result<()> {
+#[tokio::main]
+async fn main() -> std::io::Result<()> {
     println!("==================");
     println!("Kiva Server (v0.1)");
     println!("==================");
 
     let url = "127.0.0.1:6464";
-    let listener = TcpListener::bind(url)?;
+    let mut listener = TcpListener::bind(url).await?;
 
     println!("** Listening on: {}", url);
 
-    for connection in listener.incoming() {
-        println!("** Successfully established inbound TCP connection");
-        handle_connection(connection?);
+    loop {
+        let (socket, addr) = listener.accept().await?;
+        println!(
+            "** Successfully established inbound TCP connection with {}",
+            &addr
+        );
+        handle_connection(socket).await;
     }
-    Ok(())
 }
 
 #[cfg(test)]
