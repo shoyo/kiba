@@ -12,6 +12,7 @@ enum Op {
     Ping,
     Get { key: String },
     Set { key: String, val: String },
+    NoOp,
     Invalid { error: String },
 }
 
@@ -32,8 +33,11 @@ enum Token {
 struct ParserError(String);
 
 async fn parse_tokens(tokens: Vec<Token>) -> Result<Request, ParserError> {
-    let op = &tokens[0];
     let argc = tokens.len();
+    if argc == 0 {
+        return Ok(Request { op: Op::NoOp });
+    }
+    let op = &tokens[0];
     match op {
         Token::Ping => {
             if argc != 1 {
@@ -134,6 +138,11 @@ async fn exec_request(req: Request, store: &mut HashStore<String, String>) -> Re
             return Response {
                 body: "OK".to_string(),
             };
+        }
+        Op::NoOp => {
+            return Response {
+                body: "\u{0}".to_string(),
+            }
         }
         Op::Invalid { error } => {
             return Response {
@@ -262,6 +271,7 @@ mod tests {
                 }
             }
         );
+        assert_eq!(parse_tokens(vec![]), Request { op: Op::NoOp });
     }
 
     #[tokio::test]
