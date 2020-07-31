@@ -1,15 +1,29 @@
 use std::io::prelude::*;
 use std::net::TcpStream;
 
-fn main() -> std::io::Result<()> {
-    let mut stream = TcpStream::connect("127.0.0.1:6464")?;
+fn main() {
+    println!("====================");
+    println!("MiniKV Client (v0.1)");
+    println!("====================");
 
-    stream.write(b"SET foo bar");
+    let url = "127.0.0.1:6464";
+    let mut stream = TcpStream::connect(url).unwrap();
 
-    //    let cmds = ["PING", "SET foo bar", "GET foo", "GET bar"];
-    //    for cmd in &cmds {
-    //        stream.write(&cmd.as_bytes());
-    //    }
+    println!("** Successfully established TCP connection with outbound server");
+    println!("** Listening on: {}", url);
 
-    Ok(())
+    loop {
+        let mut wbuf = String::new();
+        print!("> ");
+        std::io::stdout().flush().unwrap();
+        std::io::stdin()
+            .read_line(&mut wbuf)
+            .expect("Failed to read input");
+        let _ = stream.write(wbuf.as_bytes());
+
+        let mut rbuf = [0, 128];
+        let _ = stream.read(&mut rbuf);
+
+        println!("{}", String::from_utf8_lossy(&rbuf));
+    }
 }

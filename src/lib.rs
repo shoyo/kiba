@@ -5,7 +5,7 @@ use std::hash::Hash;
 
 type Result<T> = std::result::Result<Option<T>, Box<dyn std::error::Error>>;
 
-trait MiniKV<K, V> {
+pub trait MiniKV<K, V> {
     fn new() -> Self;
     fn set(&mut self, key: K, val: V) -> Result<V>;
     fn get(&self, key: &K) -> Result<&V>;

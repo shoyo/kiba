@@ -1,4 +1,4 @@
-use minikv::HashMiniKV;
+use minikv::{HashMiniKV, MiniKV};
 use std::io::prelude::*;
 use std::net::{TcpListener, TcpStream};
 
@@ -16,7 +16,7 @@ enum Op {
 
 #[derive(Debug, PartialEq)]
 struct Response {
-    ret: String,
+    body: String,
 }
 
 #[derive(Debug, PartialEq)]
@@ -104,26 +104,70 @@ fn tokenize(bytes: &[u8]) -> Vec<Token> {
 
 fn parse_request(bytes: &[u8]) -> Request {
     let tokens = tokenize(bytes);
-    parse_tokens(tokens).unwrap()
+    let req = parse_tokens(tokens).unwrap();
+    println!("{:?}", req);
+    req
 }
 
-fn handle_request(mut stream: TcpStream) {
-    let mut buf = [0; 128];
-    stream.read(&mut buf).unwrap();
+fn exec_request(req: Request, store: &mut HashMiniKV<String, String>) -> Response {
+    match req.op {
+        Op::Ping => {
+            return Response {
+                body: "PONG".to_string(),
+            }
+        }
+        Op::Get { key } => match store.get(&key).unwrap() {
+            Some(val) => {
+                return Response {
+                    body: format!("\"{}\"", val),
+                }
+            }
+            None => {
+                return Response {
+                    body: "(nil)".to_string(),
+                }
+            }
+        },
+        Op::Set { key, val } => {
+            // TODO: Handle set result
+            let _ = store.set(key, val);
+            return Response {
+                body: "OK".to_string(),
+            };
+        }
+    }
+}
 
-    println!("{:?}\n", String::from_utf8_lossy(&buf[..]));
-    println!("{:?}", parse_request(&buf));
+fn handle_connection(mut stream: TcpStream) {
+    // TEMP: initialiize new kv-store for each connection
+    let mut store: HashMiniKV<String, String> = MiniKV::new();
+
+    loop {
+        let mut buf = [0; 128];
+        let _ = stream.read(&mut buf);
+
+        let req = parse_request(&buf);
+        let resp = exec_request(req, &mut store);
+
+        println!("{:?}", resp);
+
+        let _ = stream.write(resp.body.as_bytes());
+    }
 }
 
 fn main() -> std::io::Result<()> {
-    let host = "127.0.0.1";
-    let port = "6464";
-    let uri = format!("{}:{}", host, port);
+    println!("====================");
+    println!("MiniKV Server (v0.1)");
+    println!("====================");
 
-    let listener = TcpListener::bind(uri)?;
+    let url = "127.0.0.1:6464";
+    let listener = TcpListener::bind(url)?;
 
-    for stream in listener.incoming() {
-        handle_request(stream?);
+    println!("** Listening on: {}", url);
+
+    for connection in listener.incoming() {
+        println!("** Established TCP connection with inbound client");
+        handle_connection(connection?);
     }
     Ok(())
 }
@@ -217,5 +261,13 @@ mod tests {
             Token::Operand("foo".to_string()),
         ])
         .unwrap();
+    }
+
+    #[test]
+    fn test_response() {
+        assert_eq!(
+            exec_request(Request { op: Op::Ping }),
+            Response { body: "PONG" }
+        )
     }
 }
