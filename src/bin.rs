@@ -166,7 +166,7 @@ fn main() -> std::io::Result<()> {
     println!("** Listening on: {}", url);
 
     for connection in listener.incoming() {
-        println!("** Established TCP connection with inbound client");
+        println!("** Successfully established inbound TCP connection");
         handle_connection(connection?);
     }
     Ok(())

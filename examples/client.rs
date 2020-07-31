@@ -9,7 +9,7 @@ fn main() {
     let url = "127.0.0.1:6464";
     let mut stream = TcpStream::connect(url).unwrap();
 
-    println!("** Successfully established TCP connection with outbound server");
+    println!("** Successfully established outbound TCP connection");
     println!("** Listening on: {}", url);
 
     loop {
