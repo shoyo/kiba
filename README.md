@@ -1,1 +1,1 @@
-# Mini-KV: An simple key-value store
+# Kiva: An fast, concurrent, ditributed key-value store

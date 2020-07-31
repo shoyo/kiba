@@ -158,8 +158,7 @@ async fn handle_connection(mut stream: TcpStream) -> Result<(), Box<dyn std::err
 
     loop {
         let mut buf = [0; 128];
-        let r = stream.read(&mut buf[..]).await?;
-        println!("{}", r);
+        let _ = stream.read(&mut buf[..]).await?;
 
         let req;
         match parse_request(&buf).await {
@@ -271,7 +270,10 @@ mod tests {
                 }
             }
         );
-        assert_eq!(parse_tokens(vec![]), Request { op: Op::NoOp });
+        assert_eq!(
+            parse_tokens(vec![]).await.unwrap(),
+            Request { op: Op::NoOp }
+        );
     }
 
     #[tokio::test]

@@ -9,7 +9,7 @@ name = "kiva"
 path = "src/lib.rs"
 
 [[bin]]
-name = "kiva-server"
+name = "kiva_server"
 path = "src/bin.rs"
 
 [dependencies]
