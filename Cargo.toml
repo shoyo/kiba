@@ -13,3 +13,4 @@ name = "minikv-server"
 path = "src/bin.rs"
 
 [dependencies]
+tokio = { version = "0.2", features = ["full"] }
