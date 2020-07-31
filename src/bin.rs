@@ -12,6 +12,7 @@ enum Op {
     Ping,
     Get { key: String },
     Set { key: String, val: String },
+    Invalid { error: String },
 }
 
 #[derive(Debug, PartialEq)]
@@ -102,11 +103,11 @@ async fn tokenize(bytes: &[u8]) -> Vec<Token> {
     tokens
 }
 
-async fn parse_request(bytes: &[u8]) -> Request {
+async fn parse_request(bytes: &[u8]) -> Result<Request, ParserError> {
     let tokens = tokenize(bytes).await;
-    let req = parse_tokens(tokens).await.unwrap();
+    let req = parse_tokens(tokens).await?;
     println!("{:?}", req);
-    req
+    Ok(req)
 }
 
 async fn exec_request(req: Request, store: &mut HashStore<String, String>) -> Response {
@@ -129,34 +130,48 @@ async fn exec_request(req: Request, store: &mut HashStore<String, String>) -> Re
             }
         },
         Op::Set { key, val } => {
-            // TODO: Handle set result
             let _ = store.set(key, val);
             return Response {
                 body: "OK".to_string(),
             };
         }
+        Op::Invalid { error } => {
+            return Response {
+                body: format!("ERROR: {}", error),
+            }
+        }
     }
 }
 
-async fn handle_connection(mut stream: TcpStream) {
+async fn handle_connection(mut stream: TcpStream) -> Result<(), Box<dyn std::error::Error>> {
     // TEMP: initialiize new kv-store for each connection
     let mut store: HashStore<String, String> = Store::new();
 
     loop {
         let mut buf = [0; 128];
-        stream.read(&mut buf[..]).await;
+        stream.read(&mut buf[..]).await?;
 
-        let req = parse_request(&buf).await;
+        let req;
+        match parse_request(&buf).await {
+            Ok(request) => req = request,
+            Err(e) => {
+                req = Request {
+                    op: Op::Invalid {
+                        error: e.0.to_string(),
+                    },
+                }
+            }
+        }
         let resp = exec_request(req, &mut store).await;
 
         println!("{:?}", resp);
 
-        stream.write_all(resp.body.as_bytes()).await;
+        stream.write_all(resp.body.as_bytes()).await?;
     }
 }
 
 #[tokio::main]
-async fn main() -> std::io::Result<()> {
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("==================");
     println!("Kiva Server (v0.1)");
     println!("==================");
@@ -172,7 +187,7 @@ async fn main() -> std::io::Result<()> {
             "** Successfully established inbound TCP connection with {}",
             &addr
         );
-        handle_connection(socket).await;
+        handle_connection(socket).await?;
     }
 }
 

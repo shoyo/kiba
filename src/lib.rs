@@ -26,17 +26,17 @@ where
         }
     }
 
-    fn set(&mut self, key: K, val: V) -> Result<V> {
+    fn get(&self, key: &K) -> Result<&V> {
         // If some constraints are not fulfilled, return an error
-        match self.store.insert(key, val) {
+        match self.store.get(&key) {
             Some(val) => Ok(Some(val)),
             None => Ok(None),
         }
     }
 
-    fn get(&self, key: &K) -> Result<&V> {
+    fn set(&mut self, key: K, val: V) -> Result<V> {
         // If some constraints are not fulfilled, return an error
-        match self.store.get(&key) {
+        match self.store.insert(key, val) {
             Some(val) => Ok(Some(val)),
             None => Ok(None),
         }
