@@ -11,8 +11,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let url = "127.0.0.1:6464";
     let mut stream = TcpStream::connect(url).await?;
 
-    println!("** Successfully established outbound TCP connection");
-    println!("** Listening on: {}", url);
+    println!(
+        "** Successfully established outbound TCP connection with: {}",
+        url
+    );
 
     loop {
         let mut wbuf = String::new();

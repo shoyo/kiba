@@ -149,7 +149,8 @@ async fn handle_connection(mut stream: TcpStream) -> Result<(), Box<dyn std::err
 
     loop {
         let mut buf = [0; 128];
-        stream.read(&mut buf[..]).await?;
+        let r = stream.read(&mut buf[..]).await?;
+        println!("{}", r);
 
         let req;
         match parse_request(&buf).await {
@@ -184,7 +185,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     loop {
         let (socket, addr) = listener.accept().await?;
         println!(
-            "** Successfully established inbound TCP connection with {}",
+            "** Successfully established inbound TCP connection with: {}",
             &addr
         );
         handle_connection(socket).await?;
@@ -194,12 +195,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use kiva::{HashStore, Store};
 
-    #[test]
-    fn test_tokenize() {
-        assert_eq!(tokenize(b"PING    "), vec![Token::Ping]);
+    #[tokio::test]
+    async fn test_tokenize() {
+        assert_eq!(tokenize(b"PING    ").await, vec![Token::Ping]);
         assert_eq!(
-            tokenize("SET foo bar\u{0}\u{0}\u{0}".as_bytes()),
+            tokenize("SET foo bar\u{0}\u{0}\u{0}".as_bytes()).await,
             vec![
                 Token::Set,
                 Token::Operand("foo".to_string()),
@@ -207,11 +209,11 @@ mod tests {
             ]
         );
         assert_eq!(
-            tokenize(b"  GET    baz       "),
+            tokenize(b"  GET    baz       ").await,
             vec![Token::Get, Token::Operand("baz".to_string())]
         );
         assert_eq!(
-            tokenize(b" set time now"),
+            tokenize(b" set time now").await,
             vec![
                 Token::Set,
                 Token::Operand("time".to_string()),
@@ -219,23 +221,26 @@ mod tests {
             ]
         );
         assert_eq!(
-            tokenize(b"is invalid request"),
+            tokenize(b"is invalid request").await,
             vec![
                 Token::Operand("is".to_string()),
                 Token::Operand("invalid".to_string()),
                 Token::Operand("request".to_string())
             ]
         );
+        assert_eq!(tokenize(b" ").await, vec![]);
     }
 
-    #[test]
-    fn test_valid_parse_tokens() {
+    #[tokio::test]
+    async fn test_valid_parse_tokens() {
         assert_eq!(
-            parse_tokens(vec![Token::Ping]).unwrap(),
+            parse_tokens(vec![Token::Ping]).await.unwrap(),
             Request { op: Op::Ping }
         );
         assert_eq!(
-            parse_tokens(vec![Token::Get, Token::Operand("foo".to_string())]).unwrap(),
+            parse_tokens(vec![Token::Get, Token::Operand("foo".to_string())])
+                .await
+                .unwrap(),
             Request {
                 op: Op::Get {
                     key: "foo".to_string()
@@ -248,6 +253,7 @@ mod tests {
                 Token::Operand("foo".to_string()),
                 Token::Operand("bar".to_string())
             ])
+            .await
             .unwrap(),
             Request {
                 op: Op::Set {
@@ -258,35 +264,41 @@ mod tests {
         );
     }
 
-    #[test]
+    #[tokio::test]
     #[should_panic]
-    fn test_invalid_ping() {
-        parse_tokens(vec![Token::Ping, Token::Operand("foo".to_string())]).unwrap();
+    async fn test_invalid_ping() {
+        parse_tokens(vec![Token::Ping, Token::Operand("foo".to_string())])
+            .await
+            .unwrap();
     }
 
-    #[test]
+    #[tokio::test]
     #[should_panic]
-    fn test_invalid_get() {
-        parse_tokens(vec![Token::Get]).unwrap();
+    async fn test_invalid_get() {
+        parse_tokens(vec![Token::Get]).await.unwrap();
     }
 
-    #[test]
+    #[tokio::test]
     #[should_panic]
-    fn test_invalid_set() {
+    async fn test_invalid_set() {
         parse_tokens(vec![
             Token::Set,
             Token::Operand("baz".to_string()),
             Token::Operand("bar".to_string()),
             Token::Operand("foo".to_string()),
         ])
+        .await
         .unwrap();
     }
 
-    #[test]
-    fn test_response() {
+    #[tokio::test]
+    async fn test_response() {
+        let mut store: HashStore<String, String> = Store::new();
         assert_eq!(
-            exec_request(Request { op: Op::Ping }),
-            Response { body: "PONG" }
+            exec_request(Request { op: Op::Ping }, &mut store).await,
+            Response {
+                body: "PONG".to_string()
+            }
         )
     }
 }
