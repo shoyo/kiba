@@ -1,4 +1,4 @@
-use minikv::{HashMiniKV, MiniKV};
+use kiva::{HashStore, Store};
 use std::io::prelude::*;
 use std::net::{TcpListener, TcpStream};
 
@@ -109,7 +109,7 @@ fn parse_request(bytes: &[u8]) -> Request {
     req
 }
 
-fn exec_request(req: Request, store: &mut HashMiniKV<String, String>) -> Response {
+fn exec_request(req: Request, store: &mut HashStore<String, String>) -> Response {
     match req.op {
         Op::Ping => {
             return Response {
@@ -140,7 +140,7 @@ fn exec_request(req: Request, store: &mut HashMiniKV<String, String>) -> Respons
 
 fn handle_connection(mut stream: TcpStream) {
     // TEMP: initialiize new kv-store for each connection
-    let mut store: HashMiniKV<String, String> = MiniKV::new();
+    let mut store: HashStore<String, String> = Store::new();
 
     loop {
         let mut buf = [0; 128];
@@ -156,9 +156,9 @@ fn handle_connection(mut stream: TcpStream) {
 }
 
 fn main() -> std::io::Result<()> {
-    println!("====================");
-    println!("MiniKV Server (v0.1)");
-    println!("====================");
+    println!("==================");
+    println!("Kiva Server (v0.1)");
+    println!("==================");
 
     let url = "127.0.0.1:6464";
     let listener = TcpListener::bind(url)?;

@@ -5,23 +5,23 @@ use std::hash::Hash;
 
 type Result<T> = std::result::Result<Option<T>, Box<dyn std::error::Error>>;
 
-pub trait MiniKV<K, V> {
+pub trait Store<K, V> {
     fn new() -> Self;
     fn set(&mut self, key: K, val: V) -> Result<V>;
     fn get(&self, key: &K) -> Result<&V>;
 }
 
 #[derive(Debug)]
-pub struct HashMiniKV<K, V> {
+pub struct HashStore<K, V> {
     store: HashMap<K, V>,
 }
 
-impl<K, V> MiniKV<K, V> for HashMiniKV<K, V>
+impl<K, V> Store<K, V> for HashStore<K, V>
 where
     K: Eq + PartialEq + Hash,
 {
     fn new() -> Self {
-        HashMiniKV {
+        HashStore {
             store: HashMap::new(),
         }
     }
@@ -48,7 +48,7 @@ struct OperationalError;
 
 impl fmt::Display for OperationalError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "MiniKV: Operational Error occured")
+        write!(f, "Operational Error occured")
     }
 }
 
@@ -57,8 +57,8 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_hash_minikv() {
-        let mut store: HashMiniKV<String, u32> = MiniKV::new();
+    fn test_hash_store() {
+        let mut store: HashStore<String, u32> = Store::new();
         let _ = store.set("foo".to_string(), 5);
         assert_eq!(store.get(&"foo".to_string()).unwrap(), Some(&5));
         assert_eq!(store.get(&"bar".to_string()).unwrap(), None);
