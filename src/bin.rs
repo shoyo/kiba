@@ -196,7 +196,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             "** Successfully established inbound TCP connection with: {}",
             &addr
         );
-        handle_connection(socket).await?;
+        tokio::spawn(async move {
+            let _ = handle_connection(socket).await;
+        });
     }
 }
 
