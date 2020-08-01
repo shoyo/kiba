@@ -1,6 +1,7 @@
 use kiva::{HashStore, Store};
-use tokio::net::{TcpListener, TcpStream};
+use tokio::net::TcpListener;
 use tokio::prelude::*;
+use tokio::sync::{mpsc, oneshot};
 
 #[derive(Debug, PartialEq)]
 enum Request {
@@ -14,6 +15,12 @@ enum Request {
 #[derive(Debug, PartialEq)]
 struct Response {
     body: String,
+}
+
+#[derive(Debug)]
+struct Message {
+    req: Request,
+    pipe: oneshot::Sender<Response>,
 }
 
 #[derive(Debug, PartialEq)]
@@ -143,57 +150,63 @@ async fn exec_request(req: Request, store: &mut HashStore<String, String>) -> Re
     }
 }
 
-async fn handle_connection(mut stream: TcpStream) -> Result<(), Box<dyn std::error::Error>> {
-    // tmp
-    let mut store: HashStore<String, String> = Store::new();
-
-    loop {
-        let mut buf = [0; 128];
-        let _ = stream.read(&mut buf[..]).await?;
-
-        let req;
-        match parse_request(&buf).await {
-            Ok(request) => req = request,
-            Err(e) => {
-                req = Request::Invalid {
-                    error: e.0.to_string(),
-                }
-            }
-        }
-        let resp = exec_request(req, &mut store).await;
-
-        println!("{:?}", resp);
-
-        stream.write_all(resp.body.as_bytes()).await?;
-    }
-}
-
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("==================");
     println!("Kiva Server (v0.1)");
     println!("==================");
 
-    //    let cbuf = 100;
-    //    let (mut tx, mut rx) = tokio::sync::mpsc::channel(cbuf);
-    //
-    //    let manager = tokio::spawn(async {
-    //        let mut store: HashStore<String, String> = Store::new();
-    //        println!("** Initialized data store");
-    //    });
+    let cbuf = 100;
+    let (tx, mut rx) = mpsc::channel(cbuf);
+
+    let _manager = tokio::spawn(async move {
+        let mut store: HashStore<String, String> = Store::new();
+        println!("** Initialized data store");
+
+        while let Some(msg) = rx.recv().await {
+            let msg: Message = msg; // Make type of `msg` explicit to compiler
+            let resp = exec_request(msg.req, &mut store).await;
+            let _ = msg.pipe.send(resp);
+        }
+    });
 
     let url = "127.0.0.1:6464";
     let mut listener = TcpListener::bind(url).await?;
     println!("** Listening on: {}", url);
 
     loop {
-        let (socket, addr) = listener.accept().await?;
+        let (mut socket, addr) = listener.accept().await?;
         println!(
             "** Successfully established inbound TCP connection with: {}",
             &addr
         );
-        tokio::spawn(async move {
-            let _ = handle_connection(socket).await;
+        let mut txc = tx.clone();
+        let _task = tokio::spawn(async move {
+            loop {
+                let mut buf = [0; 128];
+                let _ = socket.read(&mut buf[..]).await;
+
+                let req;
+                match parse_request(&buf).await {
+                    Ok(request) => req = request,
+                    Err(e) => {
+                        req = Request::Invalid {
+                            error: e.0.to_string(),
+                        }
+                    }
+                }
+
+                let (send_pipe, recv_pipe) = oneshot::channel();
+                let msg = Message {
+                    req: req,
+                    pipe: send_pipe,
+                };
+
+                let _ = txc.send(msg).await;
+
+                let resp = recv_pipe.await.unwrap();
+                let _ = socket.write_all(resp.body.as_bytes()).await;
+            }
         });
     }
 }
