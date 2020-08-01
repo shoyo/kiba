@@ -3,12 +3,7 @@ use tokio::net::{TcpListener, TcpStream};
 use tokio::prelude::*;
 
 #[derive(Debug, PartialEq)]
-struct Request {
-    op: Op,
-}
-
-#[derive(Debug, PartialEq)]
-enum Op {
+enum Request {
     Ping,
     Get { key: String },
     Set { key: String, val: String },
@@ -35,7 +30,7 @@ struct ParserError(String);
 async fn parse_tokens(tokens: Vec<Token>) -> Result<Request, ParserError> {
     let argc = tokens.len();
     if argc == 0 {
-        return Ok(Request { op: Op::NoOp });
+        return Ok(Request::NoOp);
     }
     let op = &tokens[0];
     match op {
@@ -46,7 +41,7 @@ async fn parse_tokens(tokens: Vec<Token>) -> Result<Request, ParserError> {
                     argc - 1
                 )));
             }
-            return Ok(Request { op: Op::Ping });
+            return Ok(Request::Ping);
         }
         Token::Get => {
             if argc != 2 {
@@ -57,9 +52,7 @@ async fn parse_tokens(tokens: Vec<Token>) -> Result<Request, ParserError> {
             }
             match &tokens[1] {
                 Token::Operand(k) => {
-                    return Ok(Request {
-                        op: Op::Get { key: k.to_string() },
-                    });
+                    return Ok(Request::Get { key: k.to_string() });
                 }
                 _ => return Err(ParserError(format!("Get operands cannot be op types"))),
             }
@@ -81,9 +74,7 @@ async fn parse_tokens(tokens: Vec<Token>) -> Result<Request, ParserError> {
                 Token::Operand(v) => val = v.to_string(),
                 _ => return Err(ParserError(format!("Set operands cannot be op types"))),
             }
-            return Ok(Request {
-                op: Op::Set { key: key, val: val },
-            });
+            return Ok(Request::Set { key: key, val: val });
         }
         _ => return Err(ParserError(format!("Invalid op token"))),
     }
@@ -115,13 +106,13 @@ async fn parse_request(bytes: &[u8]) -> Result<Request, ParserError> {
 }
 
 async fn exec_request(req: Request, store: &mut HashStore<String, String>) -> Response {
-    match req.op {
-        Op::Ping => {
+    match req {
+        Request::Ping => {
             return Response {
                 body: "PONG".to_string(),
             }
         }
-        Op::Get { key } => match store.get(&key).unwrap() {
+        Request::Get { key } => match store.get(&key).unwrap() {
             Some(val) => {
                 return Response {
                     body: format!("\"{}\"", val),
@@ -133,18 +124,18 @@ async fn exec_request(req: Request, store: &mut HashStore<String, String>) -> Re
                 }
             }
         },
-        Op::Set { key, val } => {
+        Request::Set { key, val } => {
             let _ = store.set(key, val);
             return Response {
                 body: "OK".to_string(),
             };
         }
-        Op::NoOp => {
+        Request::NoOp => {
             return Response {
                 body: "\u{0}".to_string(),
             }
         }
-        Op::Invalid { error } => {
+        Request::Invalid { error } => {
             return Response {
                 body: format!("ERROR: {}", error),
             }
@@ -153,7 +144,7 @@ async fn exec_request(req: Request, store: &mut HashStore<String, String>) -> Re
 }
 
 async fn handle_connection(mut stream: TcpStream) -> Result<(), Box<dyn std::error::Error>> {
-    // TEMP: initialiize new kv-store for each connection
+    // tmp
     let mut store: HashStore<String, String> = Store::new();
 
     loop {
@@ -164,10 +155,8 @@ async fn handle_connection(mut stream: TcpStream) -> Result<(), Box<dyn std::err
         match parse_request(&buf).await {
             Ok(request) => req = request,
             Err(e) => {
-                req = Request {
-                    op: Op::Invalid {
-                        error: e.0.to_string(),
-                    },
+                req = Request::Invalid {
+                    error: e.0.to_string(),
                 }
             }
         }
@@ -185,9 +174,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("Kiva Server (v0.1)");
     println!("==================");
 
+    //    let cbuf = 100;
+    //    let (mut tx, mut rx) = tokio::sync::mpsc::channel(cbuf);
+    //
+    //    let manager = tokio::spawn(async {
+    //        let mut store: HashStore<String, String> = Store::new();
+    //        println!("** Initialized data store");
+    //    });
+
     let url = "127.0.0.1:6464";
     let mut listener = TcpListener::bind(url).await?;
-
     println!("** Listening on: {}", url);
 
     loop {
@@ -245,16 +241,14 @@ mod tests {
     async fn test_valid_parse_tokens() {
         assert_eq!(
             parse_tokens(vec![Token::Ping]).await.unwrap(),
-            Request { op: Op::Ping }
+            Request::Ping
         );
         assert_eq!(
             parse_tokens(vec![Token::Get, Token::Operand("foo".to_string())])
                 .await
                 .unwrap(),
-            Request {
-                op: Op::Get {
-                    key: "foo".to_string()
-                }
+            Request::Get {
+                key: "foo".to_string()
             }
         );
         assert_eq!(
@@ -265,17 +259,12 @@ mod tests {
             ])
             .await
             .unwrap(),
-            Request {
-                op: Op::Set {
-                    key: "foo".to_string(),
-                    val: "bar".to_string()
-                }
+            Request::Set {
+                key: "foo".to_string(),
+                val: "bar".to_string()
             }
         );
-        assert_eq!(
-            parse_tokens(vec![]).await.unwrap(),
-            Request { op: Op::NoOp }
-        );
+        assert_eq!(parse_tokens(vec![]).await.unwrap(), Request::NoOp);
     }
 
     #[tokio::test]
@@ -309,7 +298,7 @@ mod tests {
     async fn test_response() {
         let mut store: HashStore<String, String> = Store::new();
         assert_eq!(
-            exec_request(Request { op: Op::Ping }, &mut store).await,
+            exec_request(Request::Ping, &mut store).await,
             Response {
                 body: "PONG".to_string()
             }
