@@ -23,9 +23,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         std::io::stdin()
             .read_line(&mut wbuf)
             .expect("Failed to read input");
+
         stream.write_all(wbuf.as_bytes()).await?;
 
-        let mut rbuf = [0; 128];
+        let mut rbuf = [0; 1024];
         stream.read(&mut rbuf[..]).await?;
 
         println!("{}", String::from_utf8_lossy(&rbuf));

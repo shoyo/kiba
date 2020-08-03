@@ -4,13 +4,5 @@ version = "0.1.0"
 authors = ["Shoyo Inokuchi <shoyoinokuchi@gmail.com>"]
 edition = "2018"
 
-[lib]
-name = "kiva"
-path = "src/lib.rs"
-
-[[bin]]
-name = "kiva_server"
-path = "src/bin.rs"
-
 [dependencies]
 tokio = { version = "0.2", features = ["full"] }
