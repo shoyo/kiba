@@ -1,6 +1,4 @@
-use crate::kvsp::{Request, Response};
-use crate::store::{HashStore, Store};
-
+use crate::kvsp::Request;
 
 #[derive(Debug, PartialEq)]
 enum Token {
@@ -11,7 +9,9 @@ enum Token {
 }
 
 #[derive(Debug)]
-struct ParserError(String);
+struct ParserError {
+    message: String,
+}
 
 async fn tokenize(bytes: &[u8]) -> Vec<Token> {
     let mut tokens = Vec::new();
@@ -30,6 +30,7 @@ async fn tokenize(bytes: &[u8]) -> Vec<Token> {
     }
     tokens
 }
+
 async fn parse_tokens(tokens: Vec<Token>) -> Result<Request, ParserError> {
     let argc = tokens.len();
     if argc == 0 {
@@ -39,55 +40,69 @@ async fn parse_tokens(tokens: Vec<Token>) -> Result<Request, ParserError> {
     match op {
         Token::Ping => {
             if argc != 1 {
-                return Err(ParserError(format!(
-                    "Ping op expected no operands, got {}",
-                    argc - 1
-                )));
+                return Err(ParserError {
+                    message: format!("Ping op expected no operands, got {}", argc - 1),
+                });
             }
             return Ok(Request::Ping);
         }
         Token::Get => {
             if argc != 2 {
-                return Err(ParserError(format!(
-                    "Get op expected exactly 1 operand, got {}",
-                    argc - 1
-                )));
+                return Err(ParserError {
+                    message: format!("Get op expected exactly 1 operand, got {}", argc - 1),
+                });
             }
             match &tokens[1] {
                 Token::Operand(k) => {
                     return Ok(Request::Get { key: k.to_string() });
                 }
-                _ => return Err(ParserError(format!("Get operands cannot be op types"))),
+                _ => {
+                    return Err(ParserError {
+                        message: format!("Get operands cannot be op types"),
+                    })
+                }
             }
         }
         Token::Set => {
             if argc != 3 {
-                return Err(ParserError(format!(
-                    "Set op expected 2 operands, got {}",
-                    argc - 1
-                )));
+                return Err(ParserError {
+                    message: format!("Set op expected 2 operands, got {}", argc - 1),
+                });
             }
             let key;
             match &tokens[1] {
                 Token::Operand(k) => key = k.to_string(),
-                _ => return Err(ParserError(format!("Set operands cannot be op types"))),
+                _ => {
+                    return Err(ParserError {
+                        message: format!("Set operands cannot be op types"),
+                    })
+                }
             }
             let val;
             match &tokens[2] {
                 Token::Operand(v) => val = v.to_string(),
-                _ => return Err(ParserError(format!("Set operands cannot be op types"))),
+                _ => {
+                    return Err(ParserError {
+                        message: format!("Set operands cannot be op types"),
+                    })
+                }
             }
             return Ok(Request::Set { key: key, val: val });
         }
-        _ => return Err(ParserError(format!("Invalid op token"))),
+        _ => {
+            return Err(ParserError {
+                message: format!("Invalid op token"),
+            })
+        }
     }
 }
 
-pub async fn parse_request(bytes: &[u8]) -> Result<Request, ParserError> {
+pub async fn parse_request(bytes: &[u8]) -> Request {
     let tokens = tokenize(bytes).await;
-    let req = parse_tokens(tokens).await?;
-    println!("{:?}", req);
-    Ok(req)
+    match parse_tokens(tokens).await {
+        Ok(req) => return req,
+        Err(e) => return Request::Invalid { error: e.message },
+    }
 }
 
 #[cfg(test)]

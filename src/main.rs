@@ -85,15 +85,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 let mut buf = [0; 1024];
                 let _ = socket.read(&mut buf[..]).await;
 
-                let req;
-                match parse_request(&buf).await {
-                    Ok(request) => req = request,
-                    Err(e) => {
-                        req = Request::Invalid {
-                            error: e.0.to_string(),
-                        }
-                    }
-                }
+                let req = parse_request(&buf).await;
 
                 let (send_pipe, recv_pipe) = oneshot::channel();
                 let msg = Message {
