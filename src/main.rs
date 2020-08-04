@@ -82,7 +82,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         let mut txc = tx.clone();
         let _task = tokio::spawn(async move {
             loop {
-                let mut buf = [0; 1024];
+                let mut buf = [0; 512 * (1 << 20)];
                 let _ = socket.read(&mut buf[..]).await;
 
                 let req = parse_request(&buf).await;

@@ -26,7 +26,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         stream.write_all(wbuf.as_bytes()).await?;
 
-        let mut rbuf = [0; 1024];
+        let mut rbuf = [0; 512 * (1 << 20)];
         stream.read(&mut rbuf[..]).await?;
 
         println!("{}", String::from_utf8_lossy(&rbuf));
