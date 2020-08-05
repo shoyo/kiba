@@ -40,14 +40,14 @@ pub trait Store {
     /// If the value is not/cannot be interpreted as an integer, return an error.
     /// This operation is limited to 64-bit integers.
     /// Time complexity: O(1)
-    fn incrby(&mut self, key: String, by: i64) -> Result<i64>;
+    fn incrby(&mut self, key: String, delta: i64) -> Result<i64>;
 
     /// Decrement the value of a key by a specifed amount.
     /// Return the updated value.
     /// If the key does not exist, return an error (unlike Redis).
     /// If the value is not/cannot be interpreted as an integer, return an error.
     /// This operation is limited to 64-bit integers.
-    fn decrby(&mut self, key: String, by: i64) -> Result<i64>;
+    fn decrby(&mut self, key: String, delta: i64) -> Result<i64>;
 
     // Lists Operations
 
@@ -62,12 +62,12 @@ pub trait Store {
     fn rpush(&mut self, key: String, val: String) -> Result<u64>;
 
     /// Remove and return the element at the head of list stored at key.
-    /// If the key does not exist, return an error.
-    fn lpop(&mut self, key: String, val: String) -> Result<u64>;
+    /// If the list is empty, return None.
+    fn lpop(&mut self, key: String) -> Result<Option<String>>;
 
     /// Remove and return the element at the head of list stored at key.
-    /// If the key does not exist, return an error.
-    fn rpop(&mut self, key: String, val: String) -> Result<u64>;
+    /// If the list is empty, return None.
+    fn rpop(&mut self, key: String) -> Result<Option<String>>;
 
     // Sets Operations
 
@@ -187,21 +187,41 @@ impl Store for StdStore {
             None => {
                 let mut list = VecDeque::new();
                 list.push_front(val);
-                return Ok(list.len() as u64);
+                let len = list.len() as u64;
+                self.lists.insert(key, list);
+                return Ok(len);
             }
         }
     }
 
     fn rpush(&mut self, key: String, val: String) -> Result<u64> {
-        Ok(0)
+        match self.lists.get_mut(&key) {
+            Some(list) => {
+                list.push_back(val);
+                return Ok(list.len() as u64);
+            }
+            None => {
+                let mut list = VecDeque::new();
+                list.push_back(val);
+                let len = list.len() as u64;
+                self.lists.insert(key, list);
+                return Ok(len);
+            }
+        }
     }
 
-    fn lpop(&mut self, key: String, val: String) -> Result<u64> {
-        Ok(0)
+    fn lpop(&mut self, key: String) -> Result<Option<String>> {
+        match self.lists.get_mut(&key) {
+            Some(list) => return Ok(list.pop_front()),
+            None => return Ok(None),
+        }
     }
 
-    fn rpop(&mut self, key: String, val: String) -> Result<u64> {
-        Ok(0)
+    fn rpop(&mut self, key: String) -> Result<Option<String>> {
+        match self.lists.get_mut(&key) {
+            Some(list) => return Ok(list.pop_back()),
+            None => return Ok(None),
+        }
     }
 
     /// Sets Operations
@@ -288,7 +308,38 @@ mod tests {
 
     #[test]
     fn test_std_lists() {
-        assert!(false);
+        let mut store: StdStore = Store::new();
+        // NOTE: Implementation details regarding push and pop
+        //
+        // When popping from a non-existent key, no list is initialized
+        // and None is simply returned (no error is thrown).
+        // When pushing to a non-existent key, an empty list is first
+        // initialized and then the push operation is performed.
+        // Empty lists (after successive pop operations) are NOT destroyed.
+
+        // Popping from empty list
+        assert_eq!(store.rpop("foo".to_string()).unwrap(), None);
+        assert_eq!(store.lpop("foo".to_string()).unwrap(), None);
+
+        // Pushing
+        assert_eq!(store.lpush("foo".to_string(), "b".to_string()).unwrap(), 1);
+        assert_eq!(store.lpush("foo".to_string(), "a".to_string()).unwrap(), 2);
+        assert_eq!(store.rpush("foo".to_string(), "c".to_string()).unwrap(), 3);
+
+        // Popping from non-empty list
+        assert_eq!(
+            store.lpop("foo".to_string()).unwrap(),
+            Some("a".to_string())
+        );
+        assert_eq!(
+            store.rpop("foo".to_string()).unwrap(),
+            Some("c".to_string())
+        );
+        assert_eq!(
+            store.lpop("foo".to_string()).unwrap(),
+            Some("b".to_string())
+        );
+        assert_eq!(store.rpop("foo".to_string()).unwrap(), None);
     }
 
     #[test]
