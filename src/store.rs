@@ -62,11 +62,11 @@ pub trait Store {
     fn rpush(&mut self, key: String, val: String) -> Result<u64>;
 
     /// Remove and return the element at the head of list stored at key.
-    /// If the list is empty, return None.
+    /// If the list is empty or doesn't exist, return None.
     fn lpop(&mut self, key: String) -> Result<Option<String>>;
 
     /// Remove and return the element at the head of list stored at key.
-    /// If the list is empty, return None.
+    /// If the list is empty or doesn't exist, return None.
     fn rpop(&mut self, key: String) -> Result<Option<String>>;
 
     // Sets Operations
@@ -82,23 +82,25 @@ pub trait Store {
     fn srem(&mut self, key: String, val: String) -> Result<u64>;
 
     /// Return if value is a member of the set stored at key.
+    /// If the set is empty or doesn't exist, return false.
     fn sismember(&self, key: String, val: String) -> Result<bool>;
 
     /// Return all members of the set stored at key.
-    fn smembers(&self, key: String) -> Result<Vec<&str>>;
+    /// If the set is empty or doesn't exist, return an empty iterator.
+    fn smembers(&self, key: String) -> Result<Vec<String>>;
 
     // Hashes Operations
 
     /// Get the value related to field in the hash stored at key.
     /// If the field does not exist, return None.
     /// If the key does not exist, return an error.
-    fn hget(&self, key: String, field: String) -> Result<&str>;
+    fn hget(&self, key: String, field: String) -> Result<Option<String>>;
 
     /// Set the field of the hash stored at key to value.
     /// If the field already existed, return previous value.
     /// Otherwise, return None.
     /// If the key does not exist, create an empty hash before performing the operation.
-    fn hset(&mut self, key: String, field: String, val: String) -> Result<Option<&str>>;
+    fn hset(&mut self, key: String, field: String, val: String) -> Result<Option<String>>;
 
     /// Remove field from the hash stored at key.
     /// Return the number of fields that were deleted.
@@ -238,17 +240,17 @@ impl Store for StdStore {
         Ok(true)
     }
 
-    fn smembers(&self, key: String) -> Result<Vec<&str>> {
+    fn smembers(&self, key: String) -> Result<Vec<String>> {
         Ok(vec![])
     }
 
     /// Hashes Operations
 
-    fn hget(&self, key: String, field: String) -> Result<&str> {
-        Ok("foo")
+    fn hget(&self, key: String, field: String) -> Result<Option<String>> {
+        Ok(None)
     }
 
-    fn hset(&mut self, key: String, field: String, val: String) -> Result<Option<&str>> {
+    fn hset(&mut self, key: String, field: String, val: String) -> Result<Option<String>> {
         Ok(None)
     }
 
@@ -288,11 +290,12 @@ mod tests {
         );
     }
 
+    #[test]
     fn test_std_incr_decr() {
         let mut store: StdStore = Store::new();
-        store.set("foo".to_string(), 5.to_string());
-        store.set("bar".to_string(), "test".to_string());
-        store.set("baz".to_string(), (3.14).to_string());
+        let _ = store.set("foo".to_string(), 5.to_string());
+        let _ = store.set("bar".to_string(), "test".to_string());
+        let _ = store.set("baz".to_string(), (3.14).to_string());
 
         // Valid operations
         assert_eq!(store.incr("foo".to_string()).unwrap(), 6);
@@ -344,7 +347,61 @@ mod tests {
 
     #[test]
     fn test_std_sets() {
-        assert!(false);
+        let mut store: StdStore = Store::new();
+
+        // Add items to set
+        assert_eq!(
+            store.sadd("foo".to_string(), "item1".to_string()).unwrap(),
+            1
+        );
+        assert_eq!(
+            store.sadd("foo".to_string(), "item2".to_string()).unwrap(),
+            2
+        );
+        assert_eq!(
+            store.sadd("foo".to_string(), "item3".to_string()).unwrap(),
+            3
+        );
+        assert_eq!(
+            store.sadd("foo".to_string(), "item4".to_string()).unwrap(),
+            4
+        );
+
+        // Check membership of set
+        assert_eq!(
+            store
+                .sismember("foo".to_string(), "item1".to_string())
+                .unwrap(),
+            true
+        );
+        assert_eq!(
+            store
+                .sismember("foo".to_string(), "item5".to_string())
+                .unwrap(),
+            false
+        );
+
+        // Remove item from set
+        assert_eq!(
+            store.srem("foo".to_string(), "item1".to_string()).unwrap(),
+            3
+        );
+        assert_eq!(
+            store
+                .sismember("foo".to_string(), "item1".to_string())
+                .unwrap(),
+            false
+        );
+
+        // Get members of set
+        assert_eq!(
+            store.smembers("foo".to_string()).unwrap(),
+            vec![
+                "item2".to_string(),
+                "item3".to_string(),
+                "item4".to_string()
+            ]
+        );
     }
 
     #[test]
