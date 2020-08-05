@@ -62,11 +62,11 @@ pub trait Store {
     fn rpush(&mut self, key: String, val: String) -> Result<u64>;
 
     /// Remove and return the element at the head of list stored at key.
-    /// If the list is empty or doesn't exist, return None.
+    /// If the list is empty or does not exist, return None.
     fn lpop(&mut self, key: String) -> Result<Option<String>>;
 
     /// Remove and return the element at the head of list stored at key.
-    /// If the list is empty or doesn't exist, return None.
+    /// If the list is empty or does not exist, return None.
     fn rpop(&mut self, key: String) -> Result<Option<String>>;
 
     // Sets Operations
@@ -78,22 +78,22 @@ pub trait Store {
 
     /// Remove value in the set stored at key.
     /// Return the updated length of the set.
-    /// If the key does not exist, create an empty set before performing the operation.
+    /// If the key does not exist or the specified value is not a member of the set,
+    /// simply ignore and return 0.
     fn srem(&mut self, key: String, val: String) -> Result<u64>;
 
     /// Return if value is a member of the set stored at key.
-    /// If the set is empty or doesn't exist, return false.
+    /// If the set is empty or does not exist, return false.
     fn sismember(&self, key: String, val: String) -> Result<bool>;
 
     /// Return all members of the set stored at key.
-    /// If the set is empty or doesn't exist, return an empty iterator.
+    /// If the set is empty or does not exist, return an empty iterator.
     fn smembers(&self, key: String) -> Result<Vec<String>>;
 
     // Hashes Operations
 
     /// Get the value related to field in the hash stored at key.
-    /// If the field does not exist, return None.
-    /// If the key does not exist, return an error.
+    /// If the key or field does not exist, return None.
     fn hget(&self, key: String, field: String) -> Result<Option<String>>;
 
     /// Set the field of the hash stored at key to value.
@@ -104,8 +104,7 @@ pub trait Store {
 
     /// Remove field from the hash stored at key.
     /// Return the number of fields that were deleted.
-    /// If the field does not exist, do nothing (and return 0).
-    /// If the key does not exist, return an error.
+    /// If the key or field does not exist, do nothing (and return 0).
     fn hdel(&mut self, key: String, field: String) -> Result<u64>;
 }
 
@@ -114,7 +113,7 @@ pub struct StdStore {
     strings: HashMap<String, String>,
     lists: HashMap<String, VecDeque<String>>,
     hashes: HashMap<String, HashMap<String, String>>,
-    sets: HashMap<String, HashSet<String, String>>,
+    sets: HashMap<String, HashSet<String>>,
 }
 
 impl StdStore {
@@ -184,14 +183,13 @@ impl Store for StdStore {
         match self.lists.get_mut(&key) {
             Some(list) => {
                 list.push_front(val);
-                return Ok(list.len() as u64);
+                Ok(list.len() as u64)
             }
             None => {
                 let mut list = VecDeque::new();
                 list.push_front(val);
-                let len = list.len() as u64;
                 self.lists.insert(key, list);
-                return Ok(len);
+                Ok(1)
             }
         }
     }
@@ -200,62 +198,104 @@ impl Store for StdStore {
         match self.lists.get_mut(&key) {
             Some(list) => {
                 list.push_back(val);
-                return Ok(list.len() as u64);
+                Ok(list.len() as u64)
             }
             None => {
                 let mut list = VecDeque::new();
                 list.push_back(val);
-                let len = list.len() as u64;
                 self.lists.insert(key, list);
-                return Ok(len);
+                Ok(1)
             }
         }
     }
 
     fn lpop(&mut self, key: String) -> Result<Option<String>> {
         match self.lists.get_mut(&key) {
-            Some(list) => return Ok(list.pop_front()),
-            None => return Ok(None),
+            Some(list) => Ok(list.pop_front()),
+            None => Ok(None),
         }
     }
 
     fn rpop(&mut self, key: String) -> Result<Option<String>> {
         match self.lists.get_mut(&key) {
-            Some(list) => return Ok(list.pop_back()),
-            None => return Ok(None),
+            Some(list) => Ok(list.pop_back()),
+            None => Ok(None),
         }
     }
 
     /// Sets Operations
 
     fn sadd(&mut self, key: String, val: String) -> Result<u64> {
-        Ok(0)
+        match self.sets.get_mut(&key) {
+            Some(set) => {
+                set.insert(val);
+                Ok(set.len() as u64)
+            }
+            None => {
+                let mut set = HashSet::new();
+                set.insert(val);
+                self.sets.insert(key, set);
+                Ok(1)
+            }
+        }
     }
 
     fn srem(&mut self, key: String, val: String) -> Result<u64> {
-        Ok(0)
+        match self.sets.get_mut(&key) {
+            Some(set) => {
+                set.remove(&val);
+                Ok(set.len() as u64)
+            }
+            None => Ok(0),
+        }
     }
 
     fn sismember(&self, key: String, val: String) -> Result<bool> {
-        Ok(true)
+        match self.sets.get(&key) {
+            Some(set) => Ok(set.contains(&val)),
+            None => Ok(false),
+        }
     }
 
     fn smembers(&self, key: String) -> Result<Vec<String>> {
-        Ok(vec![])
+        match self.sets.get(&key) {
+            Some(set) => Ok(set.iter().map(|v| v.to_owned()).collect()),
+            None => Ok(vec![]),
+        }
     }
 
     /// Hashes Operations
 
     fn hget(&self, key: String, field: String) -> Result<Option<String>> {
-        Ok(None)
+        match self.hashes.get(&key) {
+            Some(hash) => match hash.get(&field) {
+                Some(val) => Ok(Some(val.to_string())),
+                None => Ok(None),
+            },
+            None => Ok(None),
+        }
     }
 
     fn hset(&mut self, key: String, field: String, val: String) -> Result<Option<String>> {
-        Ok(None)
+        match self.hashes.get_mut(&key) {
+            Some(hash) => Ok(hash.insert(field, val)),
+            None => {
+                let mut hash = HashMap::new();
+                hash.insert(field, val);
+                self.hashes.insert(key, hash);
+                Ok(None)
+            }
+        }
     }
 
     fn hdel(&mut self, key: String, field: String) -> Result<u64> {
-        Ok(0)
+        match self.hashes.get_mut(&key) {
+            Some(hash) => match hash.remove(&field) {
+                Some(_) => Ok(1),
+                None => Ok(0),
+            },
+            None => Ok(0),
+        }
     }
 }
 
@@ -393,19 +433,62 @@ mod tests {
             false
         );
 
-        // Get members of set
-        assert_eq!(
-            store.smembers("foo".to_string()).unwrap(),
-            vec![
-                "item2".to_string(),
-                "item3".to_string(),
-                "item4".to_string()
-            ]
-        );
+        // Get members of set (not rigorous)
+        let actual = store.smembers("foo".to_string()).unwrap();
+        assert_eq!(actual.len(), 3);
+
+        let mut expected = HashSet::new();
+        expected.insert("item2".to_string());
+        expected.insert("item3".to_string());
+        expected.insert("item4".to_string());
+
+        for item in actual.iter() {
+            assert!(expected.contains(item));
+        }
     }
 
     #[test]
     fn test_std_hashes() {
-        assert!(false);
+        let mut store: StdStore = Store::new();
+        assert_eq!(
+            store.hget("foo".to_string(), "name".to_string()).unwrap(),
+            None
+        );
+        assert_eq!(
+            store
+                .hset(
+                    "foo".to_string(),
+                    "name".to_string(),
+                    "John Doe".to_string()
+                )
+                .unwrap(),
+            None
+        );
+        assert_eq!(
+            store
+                .hset(
+                    "foo".to_string(),
+                    "name".to_string(),
+                    "John Smith".to_string()
+                )
+                .unwrap(),
+            Some("John Doe".to_string())
+        );
+        assert_eq!(
+            store.hget("foo".to_string(), "name".to_string()).unwrap(),
+            Some("John Smith".to_string())
+        );
+        assert_eq!(
+            store.hdel("bar".to_string(), "name".to_string()).unwrap(),
+            0
+        );
+        assert_eq!(
+            store.hdel("foo".to_string(), "name".to_string()).unwrap(),
+            1
+        );
+        assert_eq!(
+            store.hget("foo".to_string(), "name".to_string()).unwrap(),
+            None
+        );
     }
 }
