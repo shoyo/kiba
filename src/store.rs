@@ -1,6 +1,6 @@
 use std::collections::{HashMap, HashSet};
 
-type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
+type Result<T> = std::result::Result<T, OperationalError>;
 
 /// A shared interface for implementations of store.
 /// Time and space complexities of each function are not guaranteed and
@@ -115,6 +115,25 @@ pub struct StdStore {
     sets: HashMap<String, HashSet<String, String>>,
 }
 
+impl StdStore {
+    fn update_int(&mut self, key: String, delta: i64, err: String) -> Result<i64> {
+        match self.strings.get(&key) {
+            Some(val) => match val.to_string().parse::<i64>() {
+                Ok(int) => {
+                    self.strings.insert(key, (int + delta).to_string());
+                    return Ok(int + delta);
+                }
+                Err(_) => return Err(OperationalError { message: err }),
+            },
+            None => {
+                return Err(OperationalError {
+                    message: format!("Cannot increment non-integer values"),
+                })
+            }
+        }
+    }
+}
+
 impl Store for StdStore {
     fn new() -> Self {
         StdStore {
@@ -142,20 +161,19 @@ impl Store for StdStore {
     }
 
     fn incr(&mut self, key: String) -> Result<i64> {
-        let val = self.strings.get(&key);
-        Ok(0)
+        self.update_int(key, 1, format!("Cannot increment non-integer values"))
     }
 
     fn decr(&mut self, key: String) -> Result<i64> {
-        Ok(0)
+        self.update_int(key, -1, format!("Cannot decrement non-integer values"))
     }
 
-    fn incrby(&mut self, key: String, by: i64) -> Result<i64> {
-        Ok(0)
+    fn incrby(&mut self, key: String, delta: i64) -> Result<i64> {
+        self.update_int(key, delta, format!("Cannot increment non-integer values"))
     }
 
-    fn decrby(&mut self, key: String, by: i64) -> Result<i64> {
-        Ok(0)
+    fn decrby(&mut self, key: String, delta: i64) -> Result<i64> {
+        self.update_int(key, delta, format!("Cannot decrement non-integer values"))
     }
 
     /// Lists Operations
@@ -210,7 +228,7 @@ impl Store for StdStore {
 }
 
 #[derive(Debug, Clone)]
-struct OperationalError {
+pub struct OperationalError {
     message: String,
 }
 
