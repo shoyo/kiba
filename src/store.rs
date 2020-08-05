@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::{HashMap, HashSet, VecDeque};
 
 type Result<T> = std::result::Result<T, OperationalError>;
 
@@ -37,7 +37,7 @@ pub trait Store {
     /// Increment the value of a key by a specified amount.
     /// Return the updated value.
     /// If the key does not exist, return an error (unlike Redis).
-    /// If the value is not/cannot beinterpreted as an integer, return an error.
+    /// If the value is not/cannot be interpreted as an integer, return an error.
     /// This operation is limited to 64-bit integers.
     /// Time complexity: O(1)
     fn incrby(&mut self, key: String, by: i64) -> Result<i64>;
@@ -45,7 +45,7 @@ pub trait Store {
     /// Decrement the value of a key by a specifed amount.
     /// Return the updated value.
     /// If the key does not exist, return an error (unlike Redis).
-    /// If the value is not/cannot beinterpreted as an integer, return an error.
+    /// If the value is not/cannot be interpreted as an integer, return an error.
     /// This operation is limited to 64-bit integers.
     fn decrby(&mut self, key: String, by: i64) -> Result<i64>;
 
@@ -110,17 +110,17 @@ pub trait Store {
 #[derive(Debug)]
 pub struct StdStore {
     strings: HashMap<String, String>,
-    lists: HashMap<String, Vec<String>>,
+    lists: HashMap<String, VecDeque<String>>,
     hashes: HashMap<String, HashMap<String, String>>,
     sets: HashMap<String, HashSet<String, String>>,
 }
 
 impl StdStore {
     fn update_int(&mut self, key: String, delta: i64, err: String) -> Result<i64> {
-        match self.strings.get(&key) {
+        match self.strings.get_mut(&key) {
             Some(val) => match val.to_string().parse::<i64>() {
                 Ok(int) => {
-                    self.strings.insert(key, (int + delta).to_string());
+                    *val = (int + delta).to_string();
                     return Ok(int + delta);
                 }
                 Err(_) => return Err(OperationalError { message: err }),
@@ -173,13 +173,23 @@ impl Store for StdStore {
     }
 
     fn decrby(&mut self, key: String, delta: i64) -> Result<i64> {
-        self.update_int(key, delta, format!("Cannot decrement non-integer values"))
+        self.update_int(key, -delta, format!("Cannot decrement non-integer values"))
     }
 
     /// Lists Operations
 
     fn lpush(&mut self, key: String, val: String) -> Result<u64> {
-        Ok(0)
+        match self.lists.get_mut(&key) {
+            Some(list) => {
+                list.push_front(val);
+                return Ok(list.len() as u64);
+            }
+            None => {
+                let mut list = VecDeque::new();
+                list.push_front(val);
+                return Ok(list.len() as u64);
+            }
+        }
     }
 
     fn rpush(&mut self, key: String, val: String) -> Result<u64> {
@@ -237,7 +247,57 @@ mod tests {
     use super::*;
 
     #[test]
-    fn it_works() {
-        assert_eq!(true, true);
+    fn test_std_get_set() {
+        let mut store: StdStore = Store::new();
+        assert_eq!(store.get("foo".to_string()).unwrap(), None);
+        assert_eq!(
+            store.set("foo".to_string(), "bar".to_string()).unwrap(),
+            None
+        );
+        assert_eq!(
+            store.get("foo".to_string()).unwrap(),
+            Some("bar".to_string())
+        );
+        assert_eq!(
+            store.set("foo".to_string(), "baz".to_string()).unwrap(),
+            Some("bar".to_string())
+        );
+        assert_eq!(
+            store.get("foo".to_string()).unwrap(),
+            Some("baz".to_string())
+        );
+    }
+
+    fn test_std_incr_decr() {
+        let mut store: StdStore = Store::new();
+        store.set("foo".to_string(), 5.to_string());
+        store.set("bar".to_string(), "test".to_string());
+        store.set("baz".to_string(), (3.14).to_string());
+
+        // Valid operations
+        assert_eq!(store.incr("foo".to_string()).unwrap(), 6);
+        assert_eq!(store.incrby("foo".to_string(), 10).unwrap(), 16);
+        assert_eq!(store.decr("foo".to_string()).unwrap(), 15);
+        assert_eq!(store.decrby("foo".to_string(), 10).unwrap(), 5);
+
+        // Invalid operations
+        assert_eq!(store.incr("dne".to_string()).is_ok(), false);
+        assert_eq!(store.incr("bar".to_string()).is_ok(), false);
+        assert_eq!(store.incr("baz".to_string()).is_ok(), false);
+    }
+
+    #[test]
+    fn test_std_lists() {
+        assert!(false);
+    }
+
+    #[test]
+    fn test_std_sets() {
+        assert!(false);
+    }
+
+    #[test]
+    fn test_std_hashes() {
+        assert!(false);
     }
 }

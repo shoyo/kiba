@@ -102,3 +102,19 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         });
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn test_response() {
+        let mut store: StdStore = Store::new();
+        assert_eq!(
+            exec_request(Request::Ping, &mut store).await,
+            Response {
+                body: "PONG".to_string()
+            }
+        )
+    }
+}
