@@ -108,7 +108,7 @@ pub async fn parse_request(bytes: &[u8]) -> Request {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use kiva::{HashStore, Store};
+    use kiva::{StdStore, Store};
 
     #[tokio::test]
     async fn test_tokenize() {
@@ -203,7 +203,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_response() {
-        let mut store: HashStore<String, String> = Store::new();
+        let mut store: StdStore = Store::new();
         assert_eq!(
             exec_request(Request::Ping, &mut store).await,
             Response {

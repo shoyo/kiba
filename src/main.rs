@@ -1,6 +1,6 @@
 use kiva::kvsp::{Request, Response};
 use kiva::parser::parse_request;
-use kiva::store::{HashStore, Store};
+use kiva::store::{StdStore, Store};
 use tokio::net::TcpListener;
 use tokio::prelude::*;
 use tokio::sync::{mpsc, oneshot};
@@ -11,14 +11,14 @@ struct Message {
     pipe: oneshot::Sender<Response>,
 }
 
-async fn exec_request(req: Request, store: &mut HashStore<String, String>) -> Response {
+async fn exec_request(req: Request, store: &mut StdStore) -> Response {
     match req {
         Request::Ping => {
             return Response {
                 body: "PONG".to_string(),
             }
         }
-        Request::Get { key } => match store.get(&key).unwrap() {
+        Request::Get { key } => match store.get(key).unwrap() {
             Some(val) => {
                 return Response {
                     body: format!("\"{}\"", val),
@@ -59,7 +59,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let (tx, mut rx) = mpsc::channel(cbound);
 
     let _manager = tokio::spawn(async move {
-        let mut store: HashStore<String, String> = Store::new();
+        let mut store: StdStore = Store::new();
         println!("** Initialized data store");
 
         while let Some(msg) = rx.recv().await {
@@ -82,7 +82,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         let mut txc = tx.clone();
         let _task = tokio::spawn(async move {
             loop {
-                let mut buf = [0; 512 * (1 << 20)];
+                // let mut buf = [0; 512 * (1 << 20)];
+                let mut buf = [0; 512];
                 let _ = socket.read(&mut buf[..]).await;
 
                 let req = parse_request(&buf).await;
