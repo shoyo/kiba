@@ -5,7 +5,7 @@ use tokio::prelude::*;
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("==================");
-    println!("Kiva Client (v0.1)");
+    println!("Kiba Client (v0.1)");
     println!("==================");
 
     let url = "127.0.0.1:6464";
@@ -18,7 +18,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     loop {
         let mut wbuf = String::new();
-        print!("> ");
+        print!("kiba> ");
         std::io::stdout().flush().unwrap();
         std::io::stdin()
             .read_line(&mut wbuf)

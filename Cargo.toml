@@ -1,5 +1,5 @@
 [package]
-name = "kiva"
+name = "kiba"
 version = "0.1.0"
 authors = ["Shoyo Inokuchi <shoyoinokuchi@gmail.com>"]
 edition = "2018"

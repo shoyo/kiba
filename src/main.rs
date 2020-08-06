@@ -1,6 +1,6 @@
-use kiva::ksp::{exec_request, Request, Response};
-use kiva::parser::parse_request;
-use kiva::store::{StdStore, Store};
+use kiba::ksp::{exec_request, Request, Response};
+use kiba::parser::parse_request;
+use kiba::store::{StdStore, Store};
 use tokio::net::TcpListener;
 use tokio::prelude::*;
 use tokio::sync::{mpsc, oneshot};
@@ -14,7 +14,7 @@ struct Message {
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("==================");
-    println!("Kiva Server (v0.1)");
+    println!("Kiba Server (v0.1)");
     println!("==================");
 
     let cbound = 128;

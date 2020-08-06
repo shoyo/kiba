@@ -1,4 +1,4 @@
-use crate::kvsp::Request;
+use crate::ksp::Request;
 
 #[derive(Debug, PartialEq)]
 enum Token {
