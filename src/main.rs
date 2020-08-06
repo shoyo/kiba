@@ -1,4 +1,4 @@
-use kiva::kvsp::{Request, Response};
+use kiva::ksp::{exec_request, Request, Response};
 use kiva::parser::parse_request;
 use kiva::store::{StdStore, Store};
 use tokio::net::TcpListener;
@@ -9,44 +9,6 @@ use tokio::sync::{mpsc, oneshot};
 struct Message {
     req: Request,
     pipe: oneshot::Sender<Response>,
-}
-
-async fn exec_request(req: Request, store: &mut StdStore) -> Response {
-    match req {
-        Request::Ping => {
-            return Response {
-                body: "PONG".to_string(),
-            }
-        }
-        Request::Get { key } => match store.get(key).unwrap() {
-            Some(val) => {
-                return Response {
-                    body: format!("\"{}\"", val),
-                }
-            }
-            None => {
-                return Response {
-                    body: "(nil)".to_string(),
-                }
-            }
-        },
-        Request::Set { key, val } => {
-            let _ = store.set(key, val);
-            return Response {
-                body: "OK".to_string(),
-            };
-        }
-        Request::NoOp => {
-            return Response {
-                body: "\u{0}".to_string(),
-            }
-        }
-        Request::Invalid { error } => {
-            return Response {
-                body: format!("ERROR: {}", error),
-            }
-        }
-    }
 }
 
 #[tokio::main]
@@ -100,21 +62,5 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 let _ = socket.write_all(resp.body.as_bytes()).await;
             }
         });
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[tokio::test]
-    async fn test_response() {
-        let mut store: StdStore = Store::new();
-        assert_eq!(
-            exec_request(Request::Ping, &mut store).await,
-            Response {
-                body: "PONG".to_string()
-            }
-        )
     }
 }

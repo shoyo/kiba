@@ -3,9 +3,44 @@ use crate::kvsp::Request;
 #[derive(Debug, PartialEq)]
 enum Token {
     Ping,
+    StringOp(StringOp)
+    ListOp(ListOp),
+    SetOp(SetOp),
+    HashOp(HashOp),
+    Operand(String),
+}
+
+#[derive(Debug, PartialEq)]
+enum StringOp {
     Get,
     Set,
-    Operand(String),
+    Incr,
+    Decr,
+    IncrBy,
+    DecrBy,
+}
+
+#[derive(Debug, PartialEq)]
+enum ListOp {
+    LPush,
+    RPush,
+    LPop,
+    RPop,
+}
+
+#[derive(Debug, PartialEq)]
+enum SetOp {
+    SAdd,
+    SRem,
+    SIsMember,
+    SMembers,
+}
+
+#[derive(Debug, PartialEq)]
+enum HashOp {
+    HGet
+    HSet,
+    HDel,
 }
 
 #[derive(Debug)]
@@ -23,12 +58,34 @@ async fn tokenize(bytes: &[u8]) -> Vec<Token> {
     while let Some(chunk) = chunks.next() {
         match chunk.to_uppercase().as_str() {
             "PING" => tokens.push(Token::Ping),
-            "GET" => tokens.push(Token::Get),
-            "SET" => tokens.push(Token::Set),
+            "GET" => tokens.push(Token::StringOp(StringOp::Get)),
+            "SET" => tokens.push(Token::StringOp(StringOp::Set)),
+            "INCR" => tokens.push(Token::StringOp(StringOp::Incr)),
+            "DECR" => tokens.push(Token::StringOp(StringOp::Decr)),
+            "INCRBY" => tokens.push(Token::StringOp(StringOp::IncrBy)),
+            "DECRBY" => tokens.push(Token::StringOp(StringOp::DecrBy)),
+            "LPUSH" => tokens.push(Token::ListOp(ListOp::LPush)),
+            "RPUSH" => tokens.push(Token::ListOp(ListOp::RPush)),
+            "LPOP" => tokens.push(Token::ListOp(ListOp::LPop)),
+            "RPOP" => tokens.push(Token::ListOp(ListOp::RPop)),
+            "SADD" => tokens.push(Token::SetOp(SetOp::SAdd)),
+            "SREM" => tokens.push(Token::SetOp(SetOp::SRem)),
+            "SISMEMBER" => tokens.push(Token::SetOp(SetOp::SIsMember)),
+            "SMEMBERS" => tokens.push(Token::SetOp(SetOp::SMembers)),
+            "HGET" => tokens.push(Token::HashOp(SetOp::HGet)),
+            "HSET" => tokens.push(Token::HashOp(SetOp::HSet)),
+            "HDEL" => tokens.push(Token::HashOp(SetOp::HDel)),
             _ => tokens.push(Token::Operand(chunk.to_string())),
         }
     }
     tokens
+}
+
+async fn parse_tokens(tokens: Vec<Token>) -> Result<Request, ParserError> {
+    let argc = tokens.len();
+    if argc == 0 {
+        return Ok(Request::NoOp);
+    }
 }
 
 async fn parse_tokens(tokens: Vec<Token>) -> Result<Request, ParserError> {

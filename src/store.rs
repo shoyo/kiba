@@ -128,7 +128,7 @@ impl StdStore {
             },
             None => {
                 return Err(OperationalError {
-                    message: format!("Cannot increment non-integer values"),
+                    message: format!("Specified key does not exist"),
                 })
             }
         }
