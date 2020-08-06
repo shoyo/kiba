@@ -1,0 +1,58 @@
+*** Designed and written by Shoyo I. (August 2020)
+***
+*** Layers of Execution for the Kiba database
+*** https://github.com/shoyo/kiba
+
+
+      Layers of Execution
+--------------------------------
+    Store (source of truth)       < PRIMARY TASK: Store data and expose a well-defined API.
+        [store.rs]                    Executes functions that are called by the executor.
+                                      At this layer, input validation is performed by the
+                                      Rust runtime.
+                                      Simply return a result or error according to the
+                                      defined API.
+--------------------------------
+Executor (requests -> responses)  < PRIMARY TASK: Execute request by making appropriate
+           [ksp.rs]                 calls to store, and create a response.
+       [exec_request()]               Doesn't validate any arguments before passing it to
+                                      the store.
+
+                                      Never fails to create a response. If the store
+                                      returns an error, the executor creates a response
+                                      containing the error message.
+
+                                      Note: For no op requests such as "NoOp" and "Invalid",
+                                      the executor does not interact with store and simply
+                                      creates a response containing the parsed error.
+--------------------------------
+  Parser (tokens -> requests)     < PRIMARY TASK: Parse token semantics and create request. 
+       [parser.rs]                    Accepts well-formed queries (# args, structure).
+     [parse_request()]                Rejects ill-formed queries.
+
+                                      Note #1: Does NOT verify the data types of the request
+                                      arguments. This is done at the final layer when the
+                                      appropriate store function is called. Data type
+                                      validation COULD be implemented at this layer, but it
+                                      takes place anyway in the final layer, so I've only
+                                      considered # args and structure.
+                                      (Maybe could change in the future)
+
+                                      Note #2: Never outright rejects a query. For ill-formed
+                                      tokens, simply creates an "Invalid" request variant
+                                      containing the error message and passes it along to
+                                      the executor.
+                                    
+--------------------------------
+  Tokenizer (bytes -> tokens)     < PRIMARY TASK: Serialize bytes into vector of tokens.
+         [parser.rs]                  Delimits input at whitespaces. Each resulting "word"
+         [tokenize()]                 is considered a token.
+
+                                      Accepts everything, anything it can't recognize
+                                      is simply considered an operand.
+--------------------------------
+               ^      
+        bytestream input   
+          (user query)
+              
+
