@@ -201,8 +201,8 @@ pub fn f_str(s: String) -> String {
 }
 
 pub fn f_vec(v: Vec<String>) -> String {
-    let res = String::new();
-    let iter = v.iter().enumerate();
+    let mut res = String::new();
+    let mut iter = v.iter().enumerate();
     while let Some((idx, item)) = iter.next() {
         res.push_str(&format!("{}) {}", idx + 1, item));
         res.push('\n');

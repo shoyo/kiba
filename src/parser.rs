@@ -1,13 +1,34 @@
 use crate::ksp::Request;
 
+#[derive(Debug)]
+struct ParserResult {
+    op: Operator,
+    argv: Vec<String>,
+}
+
+impl ParserResult {
+    fn new() -> Self {
+        Self {
+            op: Operator::MetaOp(MetaOp::NoOp),
+            argv: Vec::new(),
+        }
+    }
+}
+
 #[derive(Clone, Debug, PartialEq)]
-enum Token {
+enum Operator {
+    MetaOp(MetaOp),
     MiscOp(MiscOp),
     StringOp(StringOp),
     ListOp(ListOp),
     SetOp(SetOp),
     HashOp(HashOp),
-    Operand(String),
+}
+
+#[derive(Clone, Debug, PartialEq)]
+enum MetaOp {
+    NoOp,
+    Unrecognized,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -48,28 +69,17 @@ enum HashOp {
     HDel,
 }
 
-#[derive(Clone, Debug)]
-struct ParserError {
-    message: String,
-}
-
-fn invalid_argc_error(expected: usize, actual: usize) -> ParserError {
-    ParserError {
-        message: format!(
+fn invalid_argc_request(expected: usize, actual: usize) -> Request {
+    Request::Invalid {
+        error: format!(
             "Unexpected number of arguments. Expected {}, got {}",
             expected, actual
         ),
     }
 }
 
-fn not_operand_error() -> ParserError {
-    ParserError {
-        message: format!("[Internal parser error] Expected operand token"),
-    }
-}
-
-async fn tokenize(bytes: &[u8]) -> Vec<Token> {
-    let mut tokens = Vec::new();
+async fn parse(bytes: &[u8]) -> ParserResult {
+    let mut result = ParserResult::new();
     let text = std::str::from_utf8(bytes).unwrap();
     let mut chunks = text
         .split(|c: char| c.is_whitespace() || c == '\u{0}')
@@ -77,371 +87,250 @@ async fn tokenize(bytes: &[u8]) -> Vec<Token> {
 
     if let Some(chunk) = chunks.next() {
         match chunk.to_uppercase().as_str() {
-            "PING" => tokens.push(Token::MiscOp(MiscOp::Ping)),
-            "GET" => tokens.push(Token::StringOp(StringOp::Get)),
-            "SET" => tokens.push(Token::StringOp(StringOp::Set)),
-            "INCR" => tokens.push(Token::StringOp(StringOp::Incr)),
-            "DECR" => tokens.push(Token::StringOp(StringOp::Decr)),
-            "INCRBY" => tokens.push(Token::StringOp(StringOp::IncrBy)),
-            "DECRBY" => tokens.push(Token::StringOp(StringOp::DecrBy)),
-            "LPUSH" => tokens.push(Token::ListOp(ListOp::LPush)),
-            "RPUSH" => tokens.push(Token::ListOp(ListOp::RPush)),
-            "LPOP" => tokens.push(Token::ListOp(ListOp::LPop)),
-            "RPOP" => tokens.push(Token::ListOp(ListOp::RPop)),
-            "SADD" => tokens.push(Token::SetOp(SetOp::SAdd)),
-            "SREM" => tokens.push(Token::SetOp(SetOp::SRem)),
-            "SISMEMBER" => tokens.push(Token::SetOp(SetOp::SIsMember)),
-            "SMEMBERS" => tokens.push(Token::SetOp(SetOp::SMembers)),
-            "HGET" => tokens.push(Token::HashOp(HashOp::HGet)),
-            "HSET" => tokens.push(Token::HashOp(HashOp::HSet)),
-            "HDEL" => tokens.push(Token::HashOp(HashOp::HDel)),
-            _ => tokens.push(Token::Operand(chunk.to_string())),
+            "PING" => result.op = Operator::MiscOp(MiscOp::Ping),
+            "GET" => result.op = Operator::StringOp(StringOp::Get),
+            "SET" => result.op = Operator::StringOp(StringOp::Set),
+            "INCR" => result.op = Operator::StringOp(StringOp::Incr),
+            "DECR" => result.op = Operator::StringOp(StringOp::Decr),
+            "INCRBY" => result.op = Operator::StringOp(StringOp::IncrBy),
+            "DECRBY" => result.op = Operator::StringOp(StringOp::DecrBy),
+            "LPUSH" => result.op = Operator::ListOp(ListOp::LPush),
+            "RPUSH" => result.op = Operator::ListOp(ListOp::RPush),
+            "LPOP" => result.op = Operator::ListOp(ListOp::LPop),
+            "RPOP" => result.op = Operator::ListOp(ListOp::RPop),
+            "SADD" => result.op = Operator::SetOp(SetOp::SAdd),
+            "SREM" => result.op = Operator::SetOp(SetOp::SRem),
+            "SISMEMBER" => result.op = Operator::SetOp(SetOp::SIsMember),
+            "SMEMBERS" => result.op = Operator::SetOp(SetOp::SMembers),
+            "HGET" => result.op = Operator::HashOp(HashOp::HGet),
+            "HSET" => result.op = Operator::HashOp(HashOp::HSet),
+            "HDEL" => result.op = Operator::HashOp(HashOp::HDel),
+            _ => result.op = Operator::MetaOp(MetaOp::Unrecognized),
         }
     }
     while let Some(chunk) = chunks.next() {
-        tokens.push(Token::Operand(chunk.to_string()));
+        result.argv.push(chunk.to_string());
     }
-    tokens
+    result
 }
 
-async fn parse_misc_op(op: MiscOp, argc: usize, argv: Vec<Token>) -> Result<Request, ParserError> {
+async fn validate_misc_op(op: MiscOp, argv: Vec<String>) -> Request {
+    let argc = argv.len();
     match op {
         MiscOp::Ping => {
-            if argc != 1 {
-                return Err(invalid_argc_error(0, argc - 1));
+            if argc != 0 {
+                return invalid_argc_request(0, argc);
             }
-            Ok(Request::Ping)
+            Request::Ping
         }
     }
 }
 
-async fn parse_string_op(
-    op: StringOp,
-    argc: usize,
-    argv: Vec<Token>,
-) -> Result<Request, ParserError> {
+async fn validate_string_op(op: StringOp, argv: Vec<String>) -> Request {
+    let argc = argv.len();
     match op {
         StringOp::Get => {
-            if argc != 2 {
-                return Err(invalid_argc_error(1, argc - 1));
+            if argc != 1 {
+                return invalid_argc_request(1, argc);
             }
-            if let Token::Operand(k) = &argv[1] {
-                return Ok(Request::Get { key: k.to_string() });
+            Request::Get {
+                key: argv[0].clone(),
             }
-            Err(not_operand_error())
         }
         StringOp::Set => {
-            if argc != 3 {
-                return Err(invalid_argc_error(2, argc - 1));
+            if argc != 2 {
+                return invalid_argc_request(2, argc);
             }
-            if let Token::Operand(k) = &argv[1] {
-                if let Token::Operand(v) = &argv[2] {
-                    return Ok(Request::Set {
-                        key: k.to_string(),
-                        val: v.to_string(),
-                    });
-                }
+            Request::Set {
+                key: argv[0].clone(),
+                val: argv[1].clone(),
             }
-            Err(not_operand_error())
         }
         StringOp::Incr => {
-            if argc != 2 {
-                return Err(invalid_argc_error(1, argc - 1));
+            if argc != 1 {
+                return invalid_argc_request(1, argc);
             }
-            if let Token::Operand(k) = &argv[1] {
-                return Ok(Request::Incr { key: k.to_string() });
+            Request::Incr {
+                key: argv[0].clone(),
             }
-            Err(not_operand_error())
         }
         StringOp::Decr => {
-            if argc != 2 {
-                return Err(invalid_argc_error(1, argc - 1));
+            if argc != 1 {
+                return invalid_argc_request(1, argc);
             }
-            if let Token::Operand(k) = &argv[1] {
-                return Ok(Request::Decr { key: k.to_string() });
+            Request::Decr {
+                key: argv[0].clone(),
             }
-            Err(not_operand_error())
         }
         StringOp::IncrBy => {
-            if argc != 3 {
-                return Err(invalid_argc_error(2, argc - 1));
+            if argc != 2 {
+                return invalid_argc_request(2, argc);
             }
-            let Token::Operand(k) = &argv[1];
-            let Token::Operand(d) = &argv[2];
-            let parse_d = d.to_string().parse::<i64>();
-            match parse_d {
-                Ok(delta) => Ok(Request::IncrBy {
-                    key: k.to_string(),
-                    delta: delta,
-                }),
-                Err(_) => Err(ParserError {
-                    message: format!("Value is a non-integer or out of range"),
-                }),
+            let delta = argv[1].to_string().parse::<i64>();
+            match delta {
+                Ok(d) => Request::IncrBy {
+                    key: argv[0].clone(),
+                    delta: d,
+                },
+                Err(_) => Request::Invalid {
+                    error: format!("Value is a non-integer or out of range"),
+                },
             }
         }
         StringOp::DecrBy => {
-            if argc != 3 {
-                return Err(invalid_argc_error(2, argc - 1));
+            if argc != 2 {
+                return invalid_argc_request(2, argc);
             }
-            let Token::Operand(k) = &argv[1];
-            let Token::Operand(d) = &argv[2];
-            let parse_d = d.to_string().parse::<i64>();
-            match parse_d {
-                Ok(delta) => Ok(Request::DecrBy {
-                    key: k.to_string(),
-                    delta: delta,
-                }),
-                Err(_) => Err(ParserError {
-                    message: format!("Value is a non-integer or out of range"),
-                }),
+            let delta = argv[1].to_string().parse::<i64>();
+            match delta {
+                Ok(d) => Request::DecrBy {
+                    key: argv[0].clone(),
+                    delta: d,
+                },
+                Err(_) => Request::Invalid {
+                    error: format!("Value is a non-integer or out of range"),
+                },
             }
         }
     }
 }
 
-async fn parse_list_op(op: ListOp, argc: usize, argv: Vec<Token>) -> Result<Request, ParserError> {
+async fn validate_list_op(op: ListOp, argv: Vec<String>) -> Request {
+    let argc = argv.len();
     match op {
         ListOp::LPush => {
-            if argc != 3 {
-                return Err(invalid_argc_error(2, argc - 1));
+            if argc != 2 {
+                return invalid_argc_request(2, argc);
             }
-            let Token::Operand(k) = &argv[1];
-            let Token::Operand(v) = &argv[2];
-            Ok(Request::LPush {
-                key: k.to_string(),
-                val: v.to_string(),
-            })
+            Request::LPush {
+                key: argv[0].clone(),
+                val: argv[1].clone(),
+            }
         }
         ListOp::RPush => {
-            if argc != 3 {
-                return Err(invalid_argc_error(2, argc - 1));
+            if argc != 2 {
+                return invalid_argc_request(2, argc);
             }
-            let Token::Operand(k) = &argv[1];
-            let Token::Operand(v) = &argv[2];
-            Ok(Request::RPush {
-                key: k.to_string(),
-                val: v.to_string(),
-            })
+            Request::RPush {
+                key: argv[0].clone(),
+                val: argv[1].clone(),
+            }
         }
         ListOp::LPop => {
-            if argc != 2 {
-                return Err(invalid_argc_error(1, argc - 1));
+            if argc != 1 {
+                return invalid_argc_request(1, argc);
             }
-            let Token::Operand(k) = &argv[1];
-            Ok(Request::LPop { key: k.to_string() })
+            Request::LPop {
+                key: argv[0].clone(),
+            }
         }
         ListOp::RPop => {
-            if argc != 2 {
-                return Err(invalid_argc_error(1, argc - 1));
+            if argc != 1 {
+                return invalid_argc_request(1, argc);
             }
-            let Token::Operand(k) = &argv[1];
-            Ok(Request::RPop { key: k.to_string() })
+            Request::RPop {
+                key: argv[0].clone(),
+            }
         }
     }
 }
 
-async fn parse_set_op(op: SetOp, argc: usize, argv: Vec<Token>) -> Result<Request, ParserError> {
+async fn validate_set_op(op: SetOp, argv: Vec<String>) -> Request {
+    let argc = argv.len();
     match op {
         SetOp::SAdd => {
-            if argc != 3 {
-                return Err(invalid_argc_error(2, argc - 1));
+            if argc != 2 {
+                return invalid_argc_request(2, argc);
             }
-            let Token::Operand(k) = &argv[1];
-            let Token::Operand(v) = &argv[2];
-            Ok(Request::SAdd {
-                key: k.to_string(),
-                val: v.to_string(),
-            })
+            Request::SAdd {
+                key: argv[0].clone(),
+                val: argv[1].clone(),
+            }
         }
         SetOp::SRem => {
-            if argc != 3 {
-                return Err(invalid_argc_error(2, argc - 1));
+            if argc != 2 {
+                return invalid_argc_request(2, argc);
             }
-            let Token::Operand(k) = &argv[1];
-            let Token::Operand(v) = &argv[2];
-            Ok(Request::SRem {
-                key: k.to_string(),
-                val: v.to_string(),
-            })
+            Request::SRem {
+                key: argv[0].clone(),
+                val: argv[1].clone(),
+            }
         }
         SetOp::SIsMember => {
-            if argc != 3 {
-                return Err(invalid_argc_error(2, argc - 1));
+            if argc != 2 {
+                return invalid_argc_request(2, argc);
             }
-            let Token::Operand(k) = &argv[1];
-            let Token::Operand(v) = &argv[2];
-            Ok(Request::SIsMember {
-                key: k.to_string(),
-                val: v.to_string(),
-            })
+            Request::SIsMember {
+                key: argv[0].clone(),
+                val: argv[1].clone(),
+            }
         }
         SetOp::SMembers => {
-            if argc != 2 {
-                return Err(invalid_argc_error(1, argc - 1));
+            if argc != 1 {
+                return invalid_argc_request(1, argc);
             }
-            let Token::Operand(k) = &argv[1];
-            Ok(Request::SMembers { key: k.to_string() })
+            Request::SMembers {
+                key: argv[0].clone(),
+            }
         }
     }
 }
 
-async fn parse_hash_op(op: HashOp, argc: usize, argv: Vec<Token>) -> Result<Request, ParserError> {
+async fn validate_hash_op(op: HashOp, argv: Vec<String>) -> Request {
+    let argc = argv.len();
     match op {
         HashOp::HGet => {
-            if argc != 3 {
-                return Err(invalid_argc_error(2, argc - 1));
+            if argc != 2 {
+                return invalid_argc_request(2, argc);
             }
-            let Token::Operand(k) = &argv[1];
-            let Token::Operand(f) = &argv[2];
-            Ok(Request::HGet {
-                key: k.to_string(),
-                field: f.to_string(),
-            })
+            Request::HGet {
+                key: argv[0].clone(),
+                field: argv[1].clone(),
+            }
         }
         HashOp::HSet => {
-            if argc != 4 {
-                return Err(invalid_argc_error(3, argc - 1));
+            if argc != 3 {
+                return invalid_argc_request(3, argc);
             }
-            let Token::Operand(k) = &argv[1];
-            let Token::Operand(f) = &argv[2];
-            let Token::Operand(v) = &argv[3];
-            Ok(Request::HSet {
-                key: k.to_string(),
-                field: f.to_string(),
-                val: v.to_string(),
-            })
+            Request::HSet {
+                key: argv[0].clone(),
+                field: argv[1].clone(),
+                val: argv[2].clone(),
+            }
         }
         HashOp::HDel => {
-            if argc != 3 {
-                return Err(invalid_argc_error(2, argc - 1));
+            if argc != 2 {
+                return invalid_argc_request(2, argc);
             }
-            let Token::Operand(k) = &argv[1];
-            let Token::Operand(f) = &argv[2];
-            Ok(Request::HDel {
-                key: k.to_string(),
-                field: f.to_string(),
-            })
+            Request::HDel {
+                key: argv[0].clone(),
+                field: argv[1].clone(),
+            }
         }
     }
 }
 
-async fn parse_tokens(tokens: Vec<Token>) -> Result<Request, ParserError> {
-    let argc = tokens.len();
-    if argc == 0 {
-        return Ok(Request::NoOp);
+async fn validate_meta_op(op: MetaOp, _argv: Vec<String>) -> Request {
+    match op {
+        MetaOp::NoOp => Request::NoOp,
+        MetaOp::Unrecognized => Request::Invalid {
+            error: format!("Unrecognized operator"),
+        },
     }
-    match &tokens[0] {
-        Token::MiscOp(op) => parse_misc_op(op.clone(), argc, tokens).await,
-        Token::StringOp(op) => parse_string_op(op.clone(), argc, tokens).await,
-        Token::ListOp(op) => parse_list_op(op.clone(), argc, tokens).await,
-        Token::SetOp(op) => parse_set_op(op.clone(), argc, tokens).await,
-        Token::HashOp(op) => parse_hash_op(op.clone(), argc, tokens).await,
-        _ => Err(ParserError {
-            message: format!("Invalid op token"),
-        }),
+}
+
+async fn validate(result: ParserResult) -> Request {
+    match result.op {
+        Operator::MiscOp(op) => validate_misc_op(op, result.argv).await,
+        Operator::StringOp(op) => validate_string_op(op, result.argv).await,
+        Operator::ListOp(op) => validate_list_op(op, result.argv).await,
+        Operator::SetOp(op) => validate_set_op(op, result.argv).await,
+        Operator::HashOp(op) => validate_hash_op(op, result.argv).await,
+        Operator::MetaOp(op) => validate_meta_op(op, result.argv).await,
     }
 }
 
 pub async fn parse_request(bytes: &[u8]) -> Request {
-    let tokens = tokenize(bytes).await;
-    match parse_tokens(tokens).await {
-        Ok(req) => req,
-        Err(e) => Request::Invalid { error: e.message },
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[tokio::test]
-    async fn test_tokenize() {
-        assert_eq!(tokenize(b"PING    ").await, vec![Token::Ping]);
-        assert_eq!(
-            tokenize("SET foo bar\u{0}\u{0}\u{0}".as_bytes()).await,
-            vec![
-                Token::Set,
-                Token::Operand("foo".to_string()),
-                Token::Operand("bar".to_string())
-            ]
-        );
-        assert_eq!(
-            tokenize(b"  GET    baz       ").await,
-            vec![Token::Get, Token::Operand("baz".to_string())]
-        );
-        assert_eq!(
-            tokenize(b" set time now").await,
-            vec![
-                Token::Set,
-                Token::Operand("time".to_string()),
-                Token::Operand("now".to_string()),
-            ]
-        );
-        assert_eq!(
-            tokenize(b"is invalid request").await,
-            vec![
-                Token::Operand("is".to_string()),
-                Token::Operand("invalid".to_string()),
-                Token::Operand("request".to_string())
-            ]
-        );
-        assert_eq!(tokenize(b" ").await, vec![]);
-    }
-
-    #[tokio::test]
-    async fn test_valid_parse_tokens() {
-        assert_eq!(
-            parse_tokens(vec![Token::Ping]).await.unwrap(),
-            Request::Ping
-        );
-        assert_eq!(
-            parse_tokens(vec![Token::Get, Token::Operand("foo".to_string())])
-                .await
-                .unwrap(),
-            Request::Get {
-                key: "foo".to_string()
-            }
-        );
-        assert_eq!(
-            parse_tokens(vec![
-                Token::Set,
-                Token::Operand("foo".to_string()),
-                Token::Operand("bar".to_string())
-            ])
-            .await
-            .unwrap(),
-            Request::Set {
-                key: "foo".to_string(),
-                val: "bar".to_string()
-            }
-        );
-        assert_eq!(parse_tokens(vec![]).await.unwrap(), Request::NoOp);
-    }
-
-    #[tokio::test]
-    #[should_panic]
-    async fn test_invalid_ping() {
-        parse_tokens(vec![Token::Ping, Token::Operand("foo".to_string())])
-            .await
-            .unwrap();
-    }
-
-    #[tokio::test]
-    #[should_panic]
-    async fn test_invalid_get() {
-        parse_tokens(vec![Token::Get]).await.unwrap();
-    }
-
-    #[tokio::test]
-    #[should_panic]
-    async fn test_invalid_set() {
-        parse_tokens(vec![
-            Token::Set,
-            Token::Operand("baz".to_string()),
-            Token::Operand("bar".to_string()),
-            Token::Operand("foo".to_string()),
-        ])
-        .await
-        .unwrap();
-    }
+    let result = parse(bytes).await;
+    validate(result).await
 }
