@@ -1,4 +1,4 @@
-# Kiba: A fast, concurrent, in-memory database
+# Kiba: A fast, multithreaded, in-memory database
 
 ## About
 Kiba is an extremely fast in-memory database influenced heavily by Redis.
@@ -16,6 +16,8 @@ Under the hood, it utilizes user-space threads and channels to handle concurrenc
 scale to heavy load.
 
 ## Building
+Install the Rust toolchain if you haven't already (https://www.rust-lang.org/tools/install).
+
 To build Kiba, run:
 ```
 % cargo build --release
