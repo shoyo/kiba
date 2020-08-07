@@ -27,18 +27,10 @@ Executor (requests -> responses)  < PRIMARY TASK: Execute request by making appr
                                       creates a response containing the parsed error.
 --------------------------------
   Parser (tokens -> requests)     < PRIMARY TASK: Parse token semantics and create request. 
-       [parser.rs]                    Accepts well-formed queries (# args, structure).
-     [parse_request()]                Rejects ill-formed queries.
+       [parser.rs]                    Accepts well-formed queries (# args, structure, data
+      [parse_request()]               types).
 
-                                      Note #1: Does NOT verify the data types of the request
-                                      arguments. This is done at the final layer when the
-                                      appropriate store function is called. Data type
-                                      validation COULD be implemented at this layer, but it
-                                      takes place anyway in the final layer, so I've only
-                                      considered # args and structure.
-                                      (Maybe could change in the future)
-
-                                      Note #2: Never outright rejects a query. For ill-formed
+                                      Note: Never outright rejects a query. For ill-formed
                                       tokens, simply creates an "Invalid" request variant
                                       containing the error message and passes it along to
                                       the executor.
