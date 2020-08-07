@@ -1,3 +1,5 @@
+use crate::store::Store;
+
 #[derive(Debug, PartialEq)]
 pub enum Request {
     Ping,
@@ -75,7 +77,7 @@ pub struct Response {
     pub body: String,
 }
 
-async pub fn exec_request(req: Request, store: &mut StdStore) -> Response {
+pub async fn exec_request(req: Request, store: &mut impl Store) -> Response {
     match req {
         Request::Ping => Response { body: f_pong() },
         Request::Get { key } => match store.get(key).unwrap() {
@@ -112,11 +114,11 @@ async pub fn exec_request(req: Request, store: &mut StdStore) -> Response {
         },
         Request::LPush { key, val } => {
             let len = store.lpush(key, val).unwrap();
-            Response { body: f_int(len) }
+            Response { body: f_uint(len) }
         }
         Request::RPush { key, val } => {
             let len = store.rpush(key, val).unwrap();
-            Response { body: f_int(len) }
+            Response { body: f_uint(len) }
         }
         Request::LPop { key } => match store.lpop(key).unwrap() {
             Some(val) => Response { body: f_str(val) },
@@ -128,18 +130,18 @@ async pub fn exec_request(req: Request, store: &mut StdStore) -> Response {
         },
         Request::SAdd { key, val } => {
             let len = store.sadd(key, val).unwrap();
-            Response { body: f_int(len) }
+            Response { body: f_uint(len) }
         }
         Request::SRem { key, val } => {
             let len = store.srem(key, val).unwrap();
-            Response { body: f_int(len) }
+            Response { body: f_uint(len) }
         }
         Request::SIsMember { key, val } => match store.sismember(key, val).unwrap() {
-            true => Response { body: f_int(1) },
-            false => Response { body: f_int(0) },
+            true => Response { body: f_uint(1) },
+            false => Response { body: f_uint(0) },
         },
         Request::SMembers { key } => {
-            let members = store.smembers(key);
+            let members = store.smembers(key).unwrap();
             match members.len() {
                 0 => Response { body: f_empty() },
                 _ => Response {
@@ -152,12 +154,12 @@ async pub fn exec_request(req: Request, store: &mut StdStore) -> Response {
             None => Response { body: f_nil() },
         },
         Request::HSet { key, field, val } => match store.hset(key, field, val).unwrap() {
-            Some(_) => Response { body: f_int(0) },
-            None => Response { body: f_int(1) },
+            Some(_) => Response { body: f_uint(0) },
+            None => Response { body: f_uint(1) },
         },
         Request::HDel { key, field } => {
             let del = store.hdel(key, field).unwrap();
-            Response { body: f_int(del) }
+            Response { body: f_uint(del) }
         }
         Request::NoOp => return Response { body: f_noop() },
         Request::Invalid { error } => return Response { body: f_err(error) },
@@ -179,7 +181,7 @@ pub fn f_nil() -> String {
 }
 
 pub fn f_noop() -> String {
-    "\u{0}".to_string()
+    '\u{0}'.to_string()
 }
 
 pub fn f_empty() -> String {
@@ -190,6 +192,10 @@ pub fn f_int(int: i64) -> String {
     format!("(integer) {}", int)
 }
 
+pub fn f_uint(uint: u64) -> String {
+    format!("(integer) {}", uint)
+}
+
 pub fn f_str(s: String) -> String {
     format!("\"{}\"", s)
 }
@@ -198,8 +204,8 @@ pub fn f_vec(v: Vec<String>) -> String {
     let res = String::new();
     let iter = v.iter().enumerate();
     while let Some((idx, item)) = iter.next() {
-        res.push_str(format!("{}) {}", idx + 1, item));
-        res.push("\n");
+        res.push_str(&format!("{}) {}", idx + 1, item));
+        res.push('\n');
     }
     res
 }

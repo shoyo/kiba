@@ -301,7 +301,7 @@ impl Store for StdStore {
 
 #[derive(Debug, Clone)]
 pub struct OperationalError {
-    message: String,
+    pub message: String,
 }
 
 #[cfg(test)]
