@@ -25,11 +25,20 @@ To spin up Kiba with default settings, run:
 ```
 % cd target/release
 % ./kiba
+==================
+Kiba Server (v0.1)
+==================
+** Initialized data store
+** Listening on: 127.0.0.1:6464
 ```
 You can interact with the instance through a CLI by opening another terminal and running:
 ```
 % cd target/release
 % ./kiba-cli
+==================
+Kiba Client (v0.1)
+==================
+** Successfully established outbound TCP connection with: 127.0.0.1:6464
 ```
 
 ## Examples
