@@ -18,7 +18,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     loop {
         let mut wbuf = String::new();
-        print!("kiba> ");
+        print!("> ");
         std::io::stdout().flush().unwrap();
         std::io::stdin()
             .read_line(&mut wbuf)
