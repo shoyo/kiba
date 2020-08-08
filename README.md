@@ -3,7 +3,12 @@
 ## About
 Kiba is an in-memory database that's designed to be extremely performant and simple to use.
 Kiba is fundamentally a key-value store, but supports complex value types such as lists, sets, and hashes.
-It exposes a similar API to [Redis](https://github.com/redis/redis), such as `GET`, `SET`, `INCR`, `DECR`, `LPUSH`, `RPUSH`, `SADD`, `SREM`, `HSET`, `HGET` and more.
+It exposes a similar API to [Redis](https://github.com/redis/redis), such as `GET`, `SET`,
+`INCR`, `DECR`, `LPUSH`, `RPUSH`, `SADD`, `SREM`, `HSET`, `HGET` and more.
+
+*Disclaimer*: Kiba is a side-project that's still very early in its development. Needless to say, it
+shouldn't be trusted in any remotely serious settings. I plan to continue developing Kiba and improving
+its features and reliability so that *someday* it'll be production-ready.
 
 ## Benchmarks
 TODO
