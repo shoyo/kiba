@@ -2,8 +2,8 @@
 
 ## About
 Kiba is an in-memory database that's designed to be extremely performant and simple to use.
-Kiba is fundamentally a key-value store, but supports data types such as lists, sets, and hashes.
-It exposes a similar API to [Redis](https://github.com/redis/redis).
+Kiba is fundamentally a key-value store, but supports complex value types such as lists, sets, and hashes.
+It exposes a similar API to [Redis](https://github.com/redis/redis), such as `GET`, `SET`, `INCR`, `DECR`, `LPUSH`, `RPUSH`, `SADD`, `SREM`, `HSET`, `HGET` and more.
 
 ## Benchmarks
 TODO
@@ -23,11 +23,74 @@ To test the build, run:
 ## Running
 To spin up Kiba with default settings, run:
 ```
+% cd target/release
 % ./kiba
 ```
 You can interact with the instance through a CLI by opening another terminal and running:
 ```
+% cd target/release
 % ./kiba-cli
+```
+
+## Examples
+The following shows some basic examples of interacting with an instance through the CLI.
+
+Strings:
+```
+> set foo bar
+OK
+> get foo
+"bar"
+> get bar
+(nil)
+> set counter 9999
+OK
+> incr counter
+(integer) 10000
+> decrby counter 3000
+(integer) 7000
+```
+
+Lists:
+```
+> lpush letters b
+(integer) 1
+> lpush letters a
+(integer) 2
+> rpush letters c
+(integer) 3
+> lpop letters
+"a"
+> lpop letters
+"b"
+> lpop letters
+"c"
+```
+
+Sets:
+```
+> sadd colors red
+(integer) 1
+> sadd colors blue
+(integer) 2
+> sadd colors green
+(integer) 3
+> smembers colors
+1) blue
+2) green
+3) red
+```
+
+Hashes:
+```
+> hset user:321 username foobar
+(integer) 1
+> hset user:321 date_joined 2020-01-01
+(integer) 1
+> hget user:321 username
+"foobar"
+> hget user:321 date_joined
+"2020-01-01"
 ```
 
 ## Implementation
