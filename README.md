@@ -52,7 +52,7 @@ Kiba is comprised of layers that collectively parse and execute user queries:
                                  operator and vector of string arguments.
 
           Parser                 The parser performs very basic validation,
-   (bytestream -> tokens)        such as marking flagging unknown commands as
+   (bytestream -> tokens)        such as flagging unknown commands as
                                  unrecognized and empty inputs as no-ops.
 
                                  Passes along a `ParserResult` struct to the
