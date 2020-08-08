@@ -117,14 +117,18 @@ pub struct StdStore {
 }
 
 impl StdStore {
-    fn update_int(&mut self, key: String, delta: i64, err: String) -> Result<i64> {
+    fn update_int(&mut self, key: String, delta: i64) -> Result<i64> {
         match self.strings.get_mut(&key) {
             Some(val) => match val.to_string().parse::<i64>() {
                 Ok(int) => {
                     *val = (int + delta).to_string();
                     return Ok(int + delta);
                 }
-                Err(_) => return Err(OperationalError { message: err }),
+                Err(_) => {
+                    return Err(OperationalError {
+                        message: format!("Value stored at key is a non-integer"),
+                    })
+                }
             },
             None => {
                 return Err(OperationalError {
@@ -162,19 +166,19 @@ impl Store for StdStore {
     }
 
     fn incr(&mut self, key: String) -> Result<i64> {
-        self.update_int(key, 1, format!("Cannot increment non-integer values"))
+        self.update_int(key, 1)
     }
 
     fn decr(&mut self, key: String) -> Result<i64> {
-        self.update_int(key, -1, format!("Cannot decrement non-integer values"))
+        self.update_int(key, -1)
     }
 
     fn incrby(&mut self, key: String, delta: i64) -> Result<i64> {
-        self.update_int(key, delta, format!("Cannot increment non-integer values"))
+        self.update_int(key, delta)
     }
 
     fn decrby(&mut self, key: String, delta: i64) -> Result<i64> {
-        self.update_int(key, -delta, format!("Cannot decrement non-integer values"))
+        self.update_int(key, -delta)
     }
 
     /// Lists Operations

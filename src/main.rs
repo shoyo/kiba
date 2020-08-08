@@ -1,4 +1,4 @@
-use kiba::ksp::{execute, Request, Response};
+use kiba::executor::{execute, Request, Response};
 use kiba::parser::parse_request;
 use kiba::store::{StdStore, Store};
 use tokio::net::TcpListener;

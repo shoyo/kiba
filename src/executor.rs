@@ -114,9 +114,11 @@ pub fn f_str(s: String) -> String {
 pub fn f_vec(v: Vec<String>) -> String {
     let mut res = String::new();
     let mut iter = v.iter().enumerate();
-    while let Some((idx, item)) = iter.next() {
+    if let Some((idx, item)) = iter.next() {
         res.push_str(&format!("{}) {}", idx + 1, item));
-        res.push('\n');
+    }
+    while let Some((idx, item)) = iter.next() {
+        res.push_str(&format!("\n{}) {}", idx + 1, item));
     }
     res
 }
@@ -220,7 +222,7 @@ mod tests {
     use crate::store::{StdStore, Store};
 
     #[tokio::test]
-    async fn test_execute() {
+    async fn test_execute_misc() {
         let mut store: StdStore = Store::new();
 
         // PING
@@ -230,6 +232,11 @@ mod tests {
                 body: "PONG".to_string()
             }
         );
+    }
+
+    #[tokio::test]
+    async fn test_execute_strings() {
+        let mut store: StdStore = Store::new();
 
         // SET AND GET
         assert_eq!(
@@ -280,7 +287,7 @@ mod tests {
             )
             .await,
             Response {
-                body: "(error) Cannot increment non-integer values".to_string()
+                body: "(error) Value stored at key is a non-integer".to_string()
             }
         );
         assert_eq!(
@@ -346,6 +353,11 @@ mod tests {
                 body: "(integer) -9".to_string()
             }
         );
+    }
+
+    #[tokio::test]
+    async fn test_execute_lists() {
+        let mut store: StdStore = Store::new();
 
         // List operations
         assert_eq!(
@@ -410,6 +422,11 @@ mod tests {
                 body: "(nil)".to_string()
             }
         );
+    }
+
+    #[tokio::test]
+    async fn test_execute_sets() {
+        let mut store: StdStore = Store::new();
 
         // Set operations
         assert_eq!(
@@ -477,6 +494,23 @@ mod tests {
                 body: "(integer) 0".to_string()
             }
         );
+        let response = execute(
+            Request::SMembers {
+                key: "words".to_string(),
+            },
+            &mut store,
+        )
+        .await;
+        // Sets can return members in any order
+        assert!(
+            response.body == "1) the\n2) of".to_string()
+                || response.body == "1) of\n2) the".to_string()
+        );
+    }
+
+    #[tokio::test]
+    async fn test_execute_hashes() {
+        let mut store: StdStore = Store::new();
 
         // Hash operations
         assert_eq!(
