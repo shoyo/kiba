@@ -115,7 +115,7 @@ Kiba is comprised of layers that collectively parse and execute user queries:
                                  operator and vector of string arguments.
 
           Parser                 The parser performs very basic validation,
-   (bytestream -> tokens)        such as marking flagging unknown commands as
+   (bytestream -> tokens)        such as flagging unknown commands as
                                  unrecognized and empty inputs as no-ops.
 
                                  Passes along a `ParserResult` struct to the
@@ -126,7 +126,7 @@ Kiba is comprised of layers that collectively parse and execute user queries:
                                  be executed.
 
                                  Checks that for a given operator, its arguments
-                                 have the correct length and data types
+                                 have the correct length and data types.
          Validator
     (tokens -> requests)         Constructs a `Request` struct and passes it
                                  along to the executor.
@@ -138,7 +138,7 @@ Kiba is comprised of layers that collectively parse and execute user queries:
 ----------------------------
                                PRIMARY TASK: Execute requests by making
                                  appropriate calls to the store, and construct
-                                 a response to be sent back to the client.
+                                 a response to be sent back to the user.
 
          Executor                If the store returns an error, the executor
   (requests -> responses)        creates a response containing the error
