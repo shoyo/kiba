@@ -121,12 +121,26 @@ impl StdStore {
         match self.strings.get_mut(&key) {
             Some(val) => match val.to_string().parse::<i64>() {
                 Ok(int) => {
-                    *val = (int + delta).to_string();
-                    return Ok(int + delta);
+                    let check = int.checked_add(delta);
+                    match check {
+                        Some(sum) => {
+                            *val = sum.to_string();
+                            Ok(sum)
+                        }
+                        None => {
+                            return Err(OperationalError {
+                                message: format!(
+                                    "Operation would cause integer to go out-of-bounds"
+                                ),
+                            })
+                        }
+                    }
                 }
                 Err(_) => {
                     return Err(OperationalError {
-                        message: format!("Value stored at key is a non-integer"),
+                        message: format!(
+                            "Value stored at key is a non-integer or is out-of-bounds"
+                        ),
                     })
                 }
             },
@@ -351,6 +365,19 @@ mod tests {
         assert_eq!(store.incr("dne".to_string()).is_ok(), false);
         assert_eq!(store.incr("bar".to_string()).is_ok(), false);
         assert_eq!(store.incr("baz".to_string()).is_ok(), false);
+
+        // Overflow operations
+        let _ = store.set("x".to_string(), i64::MAX.to_string());
+        assert_eq!(store.incrby("x".to_string(), 1).is_ok(), false);
+        let _ = store.set("y".to_string(), i64::MIN.to_string());
+        assert_eq!(store.decrby("y".to_string(), 1).is_ok(), false);
+        assert_eq!(
+            store
+                .set("z".to_string(), "99999999999999999999999".to_string())
+                .unwrap(),
+            None
+        );
+        assert_eq!(store.incr("z".to_string()).is_ok(), false);
     }
 
     #[test]
