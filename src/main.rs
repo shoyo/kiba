@@ -1,4 +1,4 @@
-use kiba::ksp::{exec_request, Request, Response};
+use kiba::ksp::{execute, Request, Response};
 use kiba::parser::parse_request;
 use kiba::store::{StdStore, Store};
 use tokio::net::TcpListener;
@@ -20,13 +20,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let cbound = 128;
     let (tx, mut rx) = mpsc::channel(cbound);
 
-    let _manager = tokio::spawn(async move {
+    let _executor = tokio::spawn(async move {
         let mut store: StdStore = Store::new();
         println!("** Initialized data store");
 
         while let Some(msg) = rx.recv().await {
             let msg: Message = msg; // Make type of `msg` explicit to compiler
-            let resp = exec_request(msg.req, &mut store).await;
+            let resp = execute(msg.req, &mut store).await;
             let _ = msg.pipe.send(resp);
         }
     });

@@ -77,7 +77,55 @@ pub struct Response {
     pub body: String,
 }
 
-pub async fn exec_request(req: Request, store: &mut impl Store) -> Response {
+// Response body formats
+
+pub fn f_pong() -> String {
+    "PONG".to_string()
+}
+
+pub fn f_ok() -> String {
+    "OK".to_string()
+}
+
+pub fn f_nil() -> String {
+    "(nil)".to_string()
+}
+
+pub fn f_noop() -> String {
+    '\u{0}'.to_string()
+}
+
+pub fn f_empty() -> String {
+    "(empty list or set)".to_string()
+}
+
+pub fn f_int(int: i64) -> String {
+    format!("(integer) {}", int)
+}
+
+pub fn f_uint(uint: u64) -> String {
+    format!("(integer) {}", uint)
+}
+
+pub fn f_str(s: String) -> String {
+    format!("\"{}\"", s)
+}
+
+pub fn f_vec(v: Vec<String>) -> String {
+    let mut res = String::new();
+    let mut iter = v.iter().enumerate();
+    while let Some((idx, item)) = iter.next() {
+        res.push_str(&format!("{}) {}", idx + 1, item));
+        res.push('\n');
+    }
+    res
+}
+
+pub fn f_err(e: String) -> String {
+    format!("(error) {}", e)
+}
+
+pub async fn execute(req: Request, store: &mut impl Store) -> Response {
     match req {
         Request::Ping => Response { body: f_pong() },
         Request::Get { key } => match store.get(key).unwrap() {
@@ -166,65 +214,18 @@ pub async fn exec_request(req: Request, store: &mut impl Store) -> Response {
     }
 }
 
-// Response body formats
-
-pub fn f_pong() -> String {
-    "PONG".to_string()
-}
-
-pub fn f_ok() -> String {
-    "OK".to_string()
-}
-
-pub fn f_nil() -> String {
-    "(nil)".to_string()
-}
-
-pub fn f_noop() -> String {
-    '\u{0}'.to_string()
-}
-
-pub fn f_empty() -> String {
-    "(empty list or set)".to_string()
-}
-
-pub fn f_int(int: i64) -> String {
-    format!("(integer) {}", int)
-}
-
-pub fn f_uint(uint: u64) -> String {
-    format!("(integer) {}", uint)
-}
-
-pub fn f_str(s: String) -> String {
-    format!("\"{}\"", s)
-}
-
-pub fn f_vec(v: Vec<String>) -> String {
-    let mut res = String::new();
-    let mut iter = v.iter().enumerate();
-    while let Some((idx, item)) = iter.next() {
-        res.push_str(&format!("{}) {}", idx + 1, item));
-        res.push('\n');
-    }
-    res
-}
-
-pub fn f_err(e: String) -> String {
-    format!("(error) {}", e)
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::store::{StdStore, Store};
 
     #[tokio::test]
-    async fn test_kvsp_responses() {
+    async fn test_execute() {
         let mut store: StdStore = Store::new();
 
         // PING
         assert_eq!(
-            exec_request(Request::Ping, &mut store).await,
+            execute(Request::Ping, &mut store).await,
             Response {
                 body: "PONG".to_string()
             }
@@ -232,28 +233,37 @@ mod tests {
 
         // SET AND GET
         assert_eq!(
-            exec_request(Request::Set {
-                key: "foo".to_string(),
-                val: "bar".to_string()
-            })
+            execute(
+                Request::Set {
+                    key: "foo".to_string(),
+                    val: "bar".to_string()
+                },
+                &mut store
+            )
             .await,
             Response {
                 body: "OK".to_string()
             }
         );
         assert_eq!(
-            exec_request(Request::Get {
-                key: "foo".to_string()
-            })
+            execute(
+                Request::Get {
+                    key: "foo".to_string()
+                },
+                &mut store
+            )
             .await,
             Response {
                 body: "\"bar\"".to_string()
             }
         );
         assert_eq!(
-            exec_request(Request::Get {
-                key: "baz".to_string()
-            })
+            execute(
+                Request::Get {
+                    key: "baz".to_string()
+                },
+                &mut store
+            )
             .await,
             Response {
                 body: "(nil)".to_string()
@@ -262,18 +272,24 @@ mod tests {
 
         // INCR, DECR, INCRBY, DECRBY
         assert_eq!(
-            exec_request(Request::Incr {
-                key: "foo".to_string()
-            })
+            execute(
+                Request::Incr {
+                    key: "foo".to_string()
+                },
+                &mut store
+            )
             .await,
             Response {
                 body: "(error) Cannot increment non-integer values".to_string()
             }
         );
         assert_eq!(
-            exec_request(Request::Incr {
-                key: "baz".to_string()
-            })
+            execute(
+                Request::Incr {
+                    key: "baz".to_string()
+                },
+                &mut store
+            )
             .await,
             Response {
                 body: "(error) Specified key does not exist".to_string()
@@ -281,87 +297,114 @@ mod tests {
         );
         let _ = store.set("cnt".to_string(), 1.to_string());
         assert_eq!(
-            exec_request(Request::Incr {
-                key: "cnt".to_string()
-            })
+            execute(
+                Request::Incr {
+                    key: "cnt".to_string()
+                },
+                &mut store
+            )
             .await,
             Response {
                 body: "(integer) 2".to_string()
             }
         );
         assert_eq!(
-            exec_request(Request::Decr {
-                key: "cnt".to_string()
-            })
+            execute(
+                Request::Decr {
+                    key: "cnt".to_string()
+                },
+                &mut store
+            )
             .await,
             Response {
                 body: "(integer) 1".to_string()
             }
         );
         assert_eq!(
-            exec_request(Request::IncrBy {
-                key: "cnt".to_string(),
-                delta: 10
-            })
+            execute(
+                Request::IncrBy {
+                    key: "cnt".to_string(),
+                    delta: 10
+                },
+                &mut store
+            )
             .await,
             Response {
-                body: "(integer) 12".to_string()
+                body: "(integer) 11".to_string()
             }
         );
         assert_eq!(
-            exec_request(Request::DecrBy {
-                key: "cnt".to_string(),
-                delta: 20
-            })
+            execute(
+                Request::DecrBy {
+                    key: "cnt".to_string(),
+                    delta: 20
+                },
+                &mut store
+            )
             .await,
             Response {
-                body: "(integer) -8".to_string()
+                body: "(integer) -9".to_string()
             }
         );
 
         // List operations
         assert_eq!(
-            exec_request(Request::LPush {
-                key: "letters".to_string(),
-                val: "a".to_string()
-            })
+            execute(
+                Request::LPush {
+                    key: "letters".to_string(),
+                    val: "a".to_string()
+                },
+                &mut store
+            )
             .await,
             Response {
                 body: "(integer) 1".to_string()
             }
         );
         assert_eq!(
-            exec_request(Request::RPush {
-                key: "letters".to_string(),
-                val: "b".to_string()
-            })
+            execute(
+                Request::RPush {
+                    key: "letters".to_string(),
+                    val: "b".to_string()
+                },
+                &mut store
+            )
             .await,
             Response {
                 body: "(integer) 2".to_string()
             }
         );
         assert_eq!(
-            exec_request(Request::RPop {
-                key: "letters".to_string()
-            })
+            execute(
+                Request::RPop {
+                    key: "letters".to_string()
+                },
+                &mut store
+            )
             .await,
             Response {
                 body: "\"b\"".to_string()
             }
         );
         assert_eq!(
-            exec_request(Request::LPop {
-                key: "letters".to_string()
-            })
+            execute(
+                Request::LPop {
+                    key: "letters".to_string()
+                },
+                &mut store
+            )
             .await,
             Response {
                 body: "\"a\"".to_string()
             }
         );
         assert_eq!(
-            exec_request(Request::LPop {
-                key: "letters".to_string()
-            })
+            execute(
+                Request::LPop {
+                    key: "letters".to_string()
+                },
+                &mut store
+            )
             .await,
             Response {
                 body: "(nil)".to_string()
@@ -370,50 +413,65 @@ mod tests {
 
         // Set operations
         assert_eq!(
-            exec_request(Request::SRem {
-                key: "words".to_string(),
-                val: "the".to_string()
-            })
+            execute(
+                Request::SRem {
+                    key: "words".to_string(),
+                    val: "the".to_string()
+                },
+                &mut store
+            )
             .await,
             Response {
                 body: "(integer) 0".to_string()
             }
         );
         assert_eq!(
-            exec_request(Request::SAdd {
-                key: "words".to_string(),
-                val: "the".to_string()
-            })
+            execute(
+                Request::SAdd {
+                    key: "words".to_string(),
+                    val: "the".to_string()
+                },
+                &mut store
+            )
             .await,
             Response {
                 body: "(integer) 1".to_string()
             }
         );
         assert_eq!(
-            exec_request(Request::SAdd {
-                key: "words".to_string(),
-                val: "of".to_string()
-            })
+            execute(
+                Request::SAdd {
+                    key: "words".to_string(),
+                    val: "of".to_string()
+                },
+                &mut store
+            )
             .await,
             Response {
                 body: "(integer) 2".to_string()
             }
         );
         assert_eq!(
-            exec_request(Request::SIsMember {
-                key: "words".to_string(),
-                val: "of".to_string()
-            })
+            execute(
+                Request::SIsMember {
+                    key: "words".to_string(),
+                    val: "of".to_string()
+                },
+                &mut store
+            )
             .await,
             Response {
                 body: "(integer) 1".to_string()
             }
         );
         assert_eq!(
-            exec_request(Request::SIsMember {
-                key: "words".to_string(),
-                val: "at".to_string()
-            })
+            execute(
+                Request::SIsMember {
+                    key: "words".to_string(),
+                    val: "at".to_string()
+                },
+                &mut store
+            )
             .await,
             Response {
                 body: "(integer) 0".to_string()
@@ -422,62 +480,80 @@ mod tests {
 
         // Hash operations
         assert_eq!(
-            exec_request(Request::HGet {
-                key: "user1".to_string(),
-                field: "name".to_string()
-            })
+            execute(
+                Request::HGet {
+                    key: "user1".to_string(),
+                    field: "name".to_string()
+                },
+                &mut store
+            )
             .await,
             Response {
                 body: "(nil)".to_string()
             }
         );
         assert_eq!(
-            exec_request(Request::HSet {
-                key: "user1".to_string(),
-                field: "name".to_string(),
-                val: "Jane Doe".to_string(),
-            })
+            execute(
+                Request::HSet {
+                    key: "user1".to_string(),
+                    field: "name".to_string(),
+                    val: "Jane Doe".to_string(),
+                },
+                &mut store
+            )
             .await,
             Response {
                 body: "(integer) 1".to_string()
             }
         );
         assert_eq!(
-            exec_request(Request::HSet {
-                key: "user1".to_string(),
-                field: "name".to_string(),
-                val: "John Smith".to_string(),
-            })
+            execute(
+                Request::HSet {
+                    key: "user1".to_string(),
+                    field: "name".to_string(),
+                    val: "John Smith".to_string(),
+                },
+                &mut store
+            )
             .await,
             Response {
                 body: "(integer) 0".to_string()
             }
         );
         assert_eq!(
-            exec_request(Request::HGet {
-                key: "user1".to_string(),
-                field: "name".to_string()
-            })
+            execute(
+                Request::HGet {
+                    key: "user1".to_string(),
+                    field: "name".to_string()
+                },
+                &mut store
+            )
             .await,
             Response {
                 body: "\"John Smith\"".to_string()
             }
         );
         assert_eq!(
-            exec_request(Request::HDel {
-                key: "user1".to_string(),
-                field: "address".to_string()
-            })
+            execute(
+                Request::HDel {
+                    key: "user1".to_string(),
+                    field: "address".to_string()
+                },
+                &mut store
+            )
             .await,
             Response {
                 body: "(integer) 0".to_string()
             }
         );
         assert_eq!(
-            exec_request(Request::HDel {
-                key: "user1".to_string(),
-                field: "name".to_string()
-            })
+            execute(
+                Request::HDel {
+                    key: "user1".to_string(),
+                    field: "name".to_string()
+                },
+                &mut store
+            )
             .await,
             Response {
                 body: "(integer) 1".to_string()
