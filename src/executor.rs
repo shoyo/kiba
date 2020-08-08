@@ -287,7 +287,8 @@ mod tests {
             )
             .await,
             Response {
-                body: "(error) Value stored at key is a non-integer".to_string()
+                body: "(error) Value stored at key is a non-integer or is out-of-bounds"
+                    .to_string()
             }
         );
         assert_eq!(
