@@ -40,6 +40,7 @@ dirty reads.
 
 Kiba is comprised of layers that collectively parse and execute user queries:
 
+```
                           -------------------
                           Layers of Execution
                           -------------------
@@ -91,6 +92,7 @@ Kiba is comprised of layers that collectively parse and execute user queries:
                                  executor.  Simply returns a result or an error
                                  according to its defined API.
 ----------------------------
+```
               
 ## Author
 Shoyo Inokuchi (shoyoinokuchi@gmail.com)
