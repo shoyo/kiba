@@ -7,8 +7,8 @@ It exposes a similar API to [Redis](https://github.com/redis/redis), such as `GE
 `INCR`, `DECR`, `LPUSH`, `RPUSH`, `SADD`, `SREM`, `HSET`, `HGET` and more.
 
 *Disclaimer*: Kiba is a side-project that's still very early in its development. Needless to say, it
-shouldn't be trusted in any remotely serious settings. I plan to continue developing Kiba and improving
-its features and reliability so that it'll someday be production-ready.
+shouldn't be trusted in any remotely serious setting. I plan to continue developing its feature set and
+improving reliability so that it'll someday be production-ready.
 
 ## Benchmarks
 TODO
