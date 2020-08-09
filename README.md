@@ -51,45 +51,58 @@ The following shows some basic examples of interacting with an instance through 
 
 Strings:
 ```
-> set foo bar
+kiba> set foo bar
 OK
-> get foo
+
+kiba> get foo
 "bar"
-> get bar
+
+kiba> get bar
 (nil)
-> set counter 9999
+
+kiva> set counter 9999
 OK
-> incr counter
+
+kiba> incr counter
 (integer) 10000
-> decrby counter 3000
+
+kiba> decrby counter 3000
 (integer) 7000
 ```
 
 Lists:
 ```
-> lpush letters b
+kiba> lpush letters b
 (integer) 1
-> lpush letters a
+
+kiba> lpush letters a
 (integer) 2
-> rpush letters c
+
+kiba> rpush letters c
 (integer) 3
-> lpop letters
+
+kiba> lpop letters
 "a"
-> lpop letters
+
+kiba> lpop letters
 "b"
-> lpop letters
+
+kiba> lpop letters
 "c"
 ```
 
 Sets:
 ```
-> sadd colors red
+kiba> sadd colors red
 (integer) 1
-> sadd colors blue
+
+kiba> sadd colors blue
 (integer) 2
-> sadd colors green
+
+kiba> sadd colors green
 (integer) 3
-> smembers colors
+
+kiba> smembers colors
 1) blue
 2) green
 3) red
@@ -97,13 +110,16 @@ Sets:
 
 Hashes:
 ```
-> hset user:321 username foobar
+kiba> hset user:321 username foobar
 (integer) 1
-> hset user:321 date_joined 2020-01-01
+
+kiba> hset user:321 date_joined 2020-01-01
 (integer) 1
-> hget user:321 username
+
+kiba> hget user:321 username
 "foobar"
-> hget user:321 date_joined
+
+kiba> hget user:321 date_joined
 "2020-01-01"
 ```
 
