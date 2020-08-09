@@ -287,7 +287,7 @@ mod tests {
             )
             .await,
             Response {
-                body: "(error) Value stored at key is a non-integer or is out-of-bounds"
+                body: "(error) Value stored at key cannot be represented as a 64-bit integer"
                     .to_string()
             }
         );
