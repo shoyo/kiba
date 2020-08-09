@@ -18,7 +18,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     loop {
         let mut wbuf = String::new();
-        print!("> ");
+        print!("kiba> ");
         std::io::stdout().flush().unwrap();
         std::io::stdin()
             .read_line(&mut wbuf)
@@ -30,6 +30,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         let mut rbuf = [0; 512];
         stream.read(&mut rbuf[..]).await?;
 
-        println!("{}", String::from_utf8_lossy(&rbuf));
+        println!("{}\n", String::from_utf8_lossy(&rbuf));
     }
 }

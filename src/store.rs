@@ -139,7 +139,7 @@ impl StdStore {
                 Err(_) => {
                     return Err(OperationalError {
                         message: format!(
-                            "Value stored at key is a non-integer or is out-of-bounds"
+                            "Value stored at key cannot be represented as a 64-bit integer"
                         ),
                     })
                 }
