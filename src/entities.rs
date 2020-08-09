@@ -1,8 +1,11 @@
-use crate::store::StdStore;
+use crate::config::parse_config;
+use crate::store::{StdStore, Store};
+use log::error;
 use tokio::net::TcpStream;
+use tokio::prelude::*;
 
-/// A client which makes queries to the server
-struct Client {
+/// Server's representation of a client
+pub struct Client {
     /// Unique identifier for client assigned by server
     id: u64,
 
@@ -13,15 +16,52 @@ struct Client {
     addr: String,
 }
 
-/// A server hosting a database.
+/// Server hosting a data store.
 /// Accepts connections from clients and serves requests to mutate the data store.
-struct Server {
+pub struct Server {
     /// Network interface to listen for client connections
-    bind: String,
+    pub bind: String,
 
     /// Collection of all connected clients
-    clients: Vec<Client>,
+    pub clients: Vec<Client>,
+
+    /// Limit to the number of simultaneous connections
+    pub cbound: usize,
 
     /// Data store
-    store: StdStore,
+    pub store: StdStore,
+}
+
+impl Server {
+    pub fn new(conf_path: Option<&str>) -> Self {
+        let mut server = Self {
+            bind: "127.0.0.1:6464".to_string(),
+            clients: Vec::new(),
+            cbound: 128,
+            store: Store::new(),
+        };
+        match conf_path {
+            Some(path) => {
+                let conf = parse_config(&path);
+                // TODO: Handle hasher and list settings
+                if let Some(bind) = conf.get("bind") {
+                    server.bind = bind.to_string();
+                }
+                if let Some(cbound) = conf.get("cbound") {
+                    match cbound.parse::<usize>() {
+                        Ok(cb) => server.cbound = cb,
+                        Err(_) => {
+                            error!(
+                                "Channel size `cbound` must be a valid integer, found \"{}\"",
+                                cbound
+                            );
+                            std::process::exit(1);
+                        }
+                    }
+                }
+                server
+            }
+            None => server,
+        }
+    }
 }

@@ -5,4 +5,6 @@ authors = ["Shoyo Inokuchi <shoyoinokuchi@gmail.com>"]
 edition = "2018"
 
 [dependencies]
+env_logger = "0.7.1"
+log = "0.4.0"
 tokio = { version = "0.2", features = ["full"] }
