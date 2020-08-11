@@ -29,7 +29,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("╚═╝  ╚═╝╚═╝╚═════╝ ╚═╝  ╚═╝");
     println!("");
     println!("Kiba Server v0.1 (unstable)");
-    println!("");
+    println!("===========================");
 
     let argv: Vec<String> = std::env::args().collect();
     let mut server;
