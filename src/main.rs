@@ -1,9 +1,13 @@
+use kiba::entities::{Client, Server};
 use kiba::executor::{execute, Request, Response};
 use kiba::parser::parse_request;
 use kiba::store::{StdStore, Store};
 use tokio::net::TcpListener;
 use tokio::prelude::*;
 use tokio::sync::{mpsc, oneshot};
+
+#[macro_use]
+extern crate log;
 
 #[derive(Debug)]
 struct Message {
@@ -13,17 +17,32 @@ struct Message {
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    std::env::set_var("RUST_LOG", "trace");
+    env_logger::init();
+
     println!("==================");
     println!("Kiba Server (v0.1)");
     println!("==================");
 
-    let cbound = 128;
-    let (tx, mut rx) = mpsc::channel(cbound);
+    let argv: Vec<String> = std::env::args().collect();
+    let mut server;
+    match argv.len() {
+        1 => {
+            info!("Initializing server with default configuration...");
+            server = Server::new(None);
+        }
+        _ => {
+            let path = &argv[1];
+            info!("Initializing server with configuration file at: {}", &path);
+            server = Server::new(Some(&path));
+        }
+    }
+    let mut store: StdStore = Store::new();
+    info!("Successfully initialized server");
+
+    let (tx, mut rx) = mpsc::channel(server.cbound);
 
     let _executor = tokio::spawn(async move {
-        let mut store: StdStore = Store::new();
-        println!("** Initialized data store");
-
         while let Some(msg) = rx.recv().await {
             let msg: Message = msg; // Make type of `msg` explicit to compiler
             let resp = execute(msg.req, &mut store).await;
@@ -31,14 +50,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     });
 
-    let url = "127.0.0.1:6464";
-    let mut listener = TcpListener::bind(url).await?;
-    println!("** Listening on: {}", url);
+    let mut listener = TcpListener::bind(&server.bind).await?;
+    info!("Listening on: {}", &server.bind);
 
     loop {
         let (mut socket, addr) = listener.accept().await?;
-        println!(
-            "** Successfully established inbound TCP connection with: {}",
+        info!(
+            "Successfully established inbound TCP connection with: {}",
             &addr
         );
         let mut txc = tx.clone();

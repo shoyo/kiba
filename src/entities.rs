@@ -27,9 +27,6 @@ pub struct Server {
 
     /// Limit to the number of simultaneous connections
     pub cbound: usize,
-
-    /// Data store
-    pub store: StdStore,
 }
 
 impl Server {
@@ -38,7 +35,6 @@ impl Server {
             bind: "127.0.0.1:6464".to_string(),
             clients: Vec::new(),
             cbound: 128,
-            store: Store::new(),
         };
         match conf_path {
             Some(path) => {
