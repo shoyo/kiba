@@ -20,9 +20,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     std::env::set_var("RUST_LOG", "trace");
     env_logger::init();
 
-    println!("==================");
-    println!("Kiba Server (v0.1)");
-    println!("==================");
+    println!("");
+    println!("██╗  ██╗██╗██████╗  █████╗ ");
+    println!("██║ ██╔╝██║██╔══██╗██╔══██╗");
+    println!("█████╔╝ ██║██████╔╝███████║");
+    println!("██╔═██╗ ██║██╔══██╗██╔══██║");
+    println!("██║  ██╗██║██████╔╝██║  ██║");
+    println!("╚═╝  ╚═╝╚═╝╚═════╝ ╚═╝  ╚═╝");
+    println!("");
+    println!("Kiba Server v0.1 (unstable)");
+    println!("");
 
     let argv: Vec<String> = std::env::args().collect();
     let mut server;
