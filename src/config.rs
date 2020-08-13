@@ -4,12 +4,21 @@ use std::fs::File;
 use std::io::prelude::*;
 use std::io::BufReader;
 
-/// Parse config file at specified path and return a hash map of
-/// the parsed key-value pairs.
-pub fn parse_config(path: &str) -> HashMap<String, String> {
+#[derive(Clone)]
+struct Config {
+    pub bind: String,
+    pub cbound: usize,
+}
+
+const DEFAULT: Config = Config {
+    bind: "127.0.0.1".to_string(),
+    cbound: 128,
+};
+
+fn parse_kv(path: &str) -> HashMap<String, String> {
     if !path.ends_with("kiba.conf") {
         warn!("Was the correct path specified?");
-        warn!("The config file should be called \"kiba.conf\"");
+        warn!("The config file should be named \"kiba.conf\"");
         warn!("Attempting to initialize settings with: {}", path);
     }
     let f_open = File::open(path);
@@ -42,4 +51,30 @@ pub fn parse_config(path: &str) -> HashMap<String, String> {
         kv.insert(tup[0].to_string(), tup[1].to_string());
     }
     kv
+}
+
+pub fn parse_config(path: Option<&str>) -> Config {
+    match path {
+        Some(p) => {
+            let kv = parse_kv(p);
+            let mut config = DEFAULT.clone();
+            if let Some(bind) = kv.get("bind") {
+                config.bind = bind.to_string();
+            }
+            if let Some(cbound) = kv.get("cbound") {
+                match cbound.parse::<usize>() {
+                    Ok(cb) => config.cbound = cb,
+                    Err(_) => {
+                        error!(
+                            "Channel size `cbound` must be a valid integer, found \"{}\"",
+                            cbound
+                        );
+                        std::process::exit(1);
+                    }
+                }
+            }
+            config
+        }
+        None => DEFAULT.clone(),
+    }
 }
