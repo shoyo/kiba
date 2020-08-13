@@ -12,7 +12,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("██║  ██╗██║██████╔╝██║  ██║");
     println!("╚═╝  ╚═╝╚═╝╚═════╝ ╚═╝  ╚═╝");
     println!("");
-    println!("Kiba CLI 0.1");
+    println!("Kiba CLI 0.1 (unstable)");
     println!("===========================");
 
     let url = "127.0.0.1:6464";

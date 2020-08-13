@@ -5,15 +5,10 @@ use std::io::prelude::*;
 use std::io::BufReader;
 
 #[derive(Clone)]
-struct Config {
+pub struct Config {
     pub bind: String,
     pub cbound: usize,
 }
-
-const DEFAULT: Config = Config {
-    bind: "127.0.0.1".to_string(),
-    cbound: 128,
-};
 
 fn parse_kv(path: &str) -> HashMap<String, String> {
     if !path.ends_with("kiba.conf") {
@@ -54,10 +49,15 @@ fn parse_kv(path: &str) -> HashMap<String, String> {
 }
 
 pub fn parse_config(path: Option<&str>) -> Config {
+    let default: Config = Config {
+        bind: "127.0.0.1:6464".to_string(),
+        cbound: 128,
+    };
+
     match path {
         Some(p) => {
             let kv = parse_kv(p);
-            let mut config = DEFAULT.clone();
+            let mut config = default.clone();
             if let Some(bind) = kv.get("bind") {
                 config.bind = bind.to_string();
             }
@@ -75,6 +75,6 @@ pub fn parse_config(path: Option<&str>) -> Config {
             }
             config
         }
-        None => DEFAULT.clone(),
+        None => default,
     }
 }
