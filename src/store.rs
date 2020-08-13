@@ -13,11 +13,13 @@ pub trait Store {
 
     /// Get the value of a key.
     /// If the key does not exist, return None.
+    /// Time complexity: O(1)
     fn get(&self, key: String) -> Result<Option<String>>;
 
     /// Set the value of a key.
     /// If the key already existed, return previous value.
     /// Otherwise, return None.
+    /// Time complexity: O(1)
     fn set(&mut self, key: String, val: String) -> Result<Option<String>>;
 
     /// Increment the value of a key by 1.
@@ -25,6 +27,7 @@ pub trait Store {
     /// If the key does not exist, return an error (unlike Redis).
     /// If the value is not/cannot be interpreted as an integer, return an error.
     /// This operation is limited to 64-bit integers.
+    /// Time complexity: O(1)
     fn incr(&mut self, key: String) -> Result<i64>;
 
     /// Decrement the value of a key by 1.
@@ -32,6 +35,7 @@ pub trait Store {
     /// If the key does not exist, return an error (unlike Redis).
     /// If the value is not/cannot be interpreted as an integer, return an error.
     /// This operation is limited to 64-bit integers.
+    /// Time complexity: O(1)
     fn decr(&mut self, key: String) -> Result<i64>;
 
     /// Increment the value of a key by a specified amount.
@@ -47,6 +51,7 @@ pub trait Store {
     /// If the key does not exist, return an error (unlike Redis).
     /// If the value is not/cannot be interpreted as an integer, return an error.
     /// This operation is limited to 64-bit integers.
+    /// Time complexity: O(1)
     fn decrby(&mut self, key: String, delta: i64) -> Result<i64>;
 
     // Lists Operations
@@ -54,19 +59,23 @@ pub trait Store {
     /// Insert value at the head of list stored at key.
     /// Return the updated length of the list.
     /// If the key does not exist, create an empty list before performing the operation.
+    /// Time complexity: O(1)
     fn lpush(&mut self, key: String, val: String) -> Result<u64>;
 
     /// Insert value at the tail of list stored at key.
     /// Return the updated length of the list.
     /// If the key does not exist, create an empty list before performing the operation.
+    /// Time complexity: O(1)
     fn rpush(&mut self, key: String, val: String) -> Result<u64>;
 
     /// Remove and return the element at the head of list stored at key.
     /// If the list is empty or does not exist, return None.
+    /// Time complexity: O(1)
     fn lpop(&mut self, key: String) -> Result<Option<String>>;
 
     /// Remove and return the element at the head of list stored at key.
     /// If the list is empty or does not exist, return None.
+    /// Time complexity: O(1)
     fn rpop(&mut self, key: String) -> Result<Option<String>>;
 
     // Sets Operations
@@ -74,37 +83,44 @@ pub trait Store {
     /// Insert value in the set stored at key.
     /// Return the updated length of the set.
     /// If the key does not exist, create an empty set before performing the operation.
+    /// Time complexity: O(1)
     fn sadd(&mut self, key: String, val: String) -> Result<u64>;
 
     /// Remove value in the set stored at key.
     /// Return the updated length of the set.
     /// If the key does not exist or the specified value is not a member of the set,
     /// simply ignore and return 0.
+    /// Time complexity: O(1)
     fn srem(&mut self, key: String, val: String) -> Result<u64>;
 
     /// Return if value is a member of the set stored at key.
     /// If the set is empty or does not exist, return false.
+    /// Time complexity: O(1)
     fn sismember(&self, key: String, val: String) -> Result<bool>;
 
     /// Return all members of the set stored at key.
     /// If the set is empty or does not exist, return an empty iterator.
+    /// Time complexity: O(N)
     fn smembers(&self, key: String) -> Result<Vec<String>>;
 
     // Hashes Operations
 
     /// Get the value related to field in the hash stored at key.
     /// If the key or field does not exist, return None.
+    /// Time complexity: O(1)
     fn hget(&self, key: String, field: String) -> Result<Option<String>>;
 
     /// Set the field of the hash stored at key to value.
     /// If the field already existed, return previous value.
     /// Otherwise, return None.
     /// If the key does not exist, create an empty hash before performing the operation.
+    /// Time complexity: O(1)
     fn hset(&mut self, key: String, field: String, val: String) -> Result<Option<String>>;
 
     /// Remove field from the hash stored at key.
     /// Return the number of fields that were deleted.
     /// If the key or field does not exist, do nothing (and return 0).
+    /// Time complexity: O(1)
     fn hdel(&mut self, key: String, field: String) -> Result<u64>;
 }
 
