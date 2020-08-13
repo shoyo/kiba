@@ -51,7 +51,13 @@ pub async fn start_server(config: Config) -> Result<(), Box<dyn std::error::Erro
         }
     });
 
-    let mut listener = TcpListener::bind(&config.bind).await?;
+    let mut listener = match TcpListener::bind(&config.bind).await {
+        Ok(l) => l,
+        Err(_) => {
+            error!("An invalid URL was provided: {}", &config.bind);
+            std::process::exit(1);
+        }
+    };
     info!("Ready to accept connections at: {}", &config.bind);
 
     // TODO: Consider tracking client connections

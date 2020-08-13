@@ -16,18 +16,16 @@ fn parse_kv(path: &str) -> HashMap<String, String> {
         warn!("The config file should be named \"kiba.conf\"");
         warn!("Attempting to initialize settings with: {}", path);
     }
-    let f_open = File::open(path);
-    let lines;
-    match f_open {
+    let lines = match File::open(path) {
         Ok(file) => {
             let reader = BufReader::new(file);
-            lines = reader.lines();
+            reader.lines()
         }
         Err(_) => {
             error!("Could not open specified config file");
             std::process::exit(1);
         }
-    }
+    };
 
     let mut kv = HashMap::new();
     for (i, line) in lines.enumerate() {
