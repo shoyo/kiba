@@ -4,9 +4,16 @@ use tokio::prelude::*;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    println!("==================");
-    println!("Kiba Client (v0.1)");
-    println!("==================");
+    println!("");
+    println!("██╗  ██╗██╗██████╗  █████╗ ");
+    println!("██║ ██╔╝██║██╔══██╗██╔══██╗");
+    println!("█████╔╝ ██║██████╔╝███████║");
+    println!("██╔═██╗ ██║██╔══██╗██╔══██║");
+    println!("██║  ██╗██║██████╔╝██║  ██║");
+    println!("╚═╝  ╚═╝╚═╝╚═════╝ ╚═╝  ╚═╝");
+    println!("");
+    println!("Kiba CLI 0.1");
+    println!("===========================");
 
     let url = "127.0.0.1:6464";
     let mut stream = TcpStream::connect(url).await?;
