@@ -78,7 +78,7 @@ pub async fn start_server(config: Config) -> Result<(), Box<dyn std::error::Erro
 
                 let req = parse_request(&buf).await;
                 info!("Received a request from client ({}):", client.id);
-                info!("\"{:?}\"", &req);
+                info!("  -> \"{:?}\"", &req);
 
                 let (send_pipe, recv_pipe) = oneshot::channel();
                 let msg = Message {
