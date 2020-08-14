@@ -1,12 +1,12 @@
 use crate::executor::Request;
 
 #[derive(Debug)]
-struct ParserResult {
+struct LexerResult {
     op: Operator,
     argv: Vec<String>,
 }
 
-impl ParserResult {
+impl LexerResult {
     fn new() -> Self {
         Self {
             op: Operator::MetaOp(MetaOp::NoOp),
@@ -79,8 +79,8 @@ fn invalid_argc_request(expected: usize, actual: usize) -> Request {
     }
 }
 
-async fn parse(bytes: &[u8]) -> ParserResult {
-    let mut result = ParserResult::new();
+async fn parse(bytes: &[u8]) -> LexerResult {
+    let mut result = LexerResult::new();
     let text = std::str::from_utf8(bytes).unwrap();
     let mut chunks = text
         .split(|c: char| c.is_whitespace() || c == '\u{0}')
@@ -322,7 +322,7 @@ async fn validate_meta_op(op: MetaOp, _argv: Vec<String>) -> Request {
     }
 }
 
-async fn validate(result: ParserResult) -> Request {
+async fn validate(result: LexerResult) -> Request {
     match result.op {
         Operator::MiscOp(op) => validate_misc_op(op, result.argv).await,
         Operator::StringOp(op) => validate_string_op(op, result.argv).await,

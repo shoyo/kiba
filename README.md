@@ -133,13 +133,13 @@ Kiba is comprised of layers that collectively parse and execute user queries:
              v
 ----------------------------
                                PRIMARY TASK: Deserialize bytestream into an
-                                 operator and vector of string arguments.
+                                 operator and vector of string argument tokens.
 
-          Parser                 The parser performs very basic validation,
+           Lexer                 The lexer performs very basic validation,
    (bytestream -> tokens)        such as flagging unknown commands as
                                  unrecognized and empty inputs as no-ops.
 
-                                 Passes along a `ParserResult` struct to the
+                                 Passes along a `LexerResult` struct to the
                                  validator for more rigorous validation.
 ----------------------------
                                PRIMARY TASK: Validate the semantics of the user
@@ -148,7 +148,7 @@ Kiba is comprised of layers that collectively parse and execute user queries:
 
                                  Checks that for a given operator, its arguments
                                  have the correct length and data types.
-         Validator
+           Parser
     (tokens -> requests)         Constructs a `Request` struct and passes it
                                  along to the executor.
 
