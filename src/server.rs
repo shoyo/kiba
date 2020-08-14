@@ -83,8 +83,13 @@ pub async fn start_server(config: Config) -> Result<(), Box<dyn std::error::Erro
                 let _ = client.socket.read(&mut buf[..]).await;
 
                 let req = parse_request(&buf).await;
-                info!("Received a request from client ({}):", client.id);
+                info!("Received a request from client {} ({}):", client.id, &client.addr);
                 info!("  -> \"{:?}\"", &req);
+
+                if req == Request::Quit {
+                    info!("Received a QUIT request from client {} ({})", client.id, &client.addr);
+                    break;
+                }
 
                 let (send_pipe, recv_pipe) = oneshot::channel();
                 let msg = Message {

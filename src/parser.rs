@@ -29,6 +29,7 @@ enum Operator {
 enum MetaOp {
     NoOp,
     Unrecognized,
+    Quit,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -86,27 +87,28 @@ async fn parse(bytes: &[u8]) -> ParserResult {
         .filter(|s| !s.is_empty());
 
     if let Some(chunk) = chunks.next() {
-        match chunk.to_uppercase().as_str() {
-            "PING" => result.op = Operator::MiscOp(MiscOp::Ping),
-            "GET" => result.op = Operator::StringOp(StringOp::Get),
-            "SET" => result.op = Operator::StringOp(StringOp::Set),
-            "INCR" => result.op = Operator::StringOp(StringOp::Incr),
-            "DECR" => result.op = Operator::StringOp(StringOp::Decr),
-            "INCRBY" => result.op = Operator::StringOp(StringOp::IncrBy),
-            "DECRBY" => result.op = Operator::StringOp(StringOp::DecrBy),
-            "LPUSH" => result.op = Operator::ListOp(ListOp::LPush),
-            "RPUSH" => result.op = Operator::ListOp(ListOp::RPush),
-            "LPOP" => result.op = Operator::ListOp(ListOp::LPop),
-            "RPOP" => result.op = Operator::ListOp(ListOp::RPop),
-            "SADD" => result.op = Operator::SetOp(SetOp::SAdd),
-            "SREM" => result.op = Operator::SetOp(SetOp::SRem),
-            "SISMEMBER" => result.op = Operator::SetOp(SetOp::SIsMember),
-            "SMEMBERS" => result.op = Operator::SetOp(SetOp::SMembers),
-            "HGET" => result.op = Operator::HashOp(HashOp::HGet),
-            "HSET" => result.op = Operator::HashOp(HashOp::HSet),
-            "HDEL" => result.op = Operator::HashOp(HashOp::HDel),
-            _ => result.op = Operator::MetaOp(MetaOp::Unrecognized),
-        }
+        result.op = match chunk.to_uppercase().as_str() {
+            "PING" => Operator::MiscOp(MiscOp::Ping),
+            "GET" => Operator::StringOp(StringOp::Get),
+            "SET" => Operator::StringOp(StringOp::Set),
+            "INCR" => Operator::StringOp(StringOp::Incr),
+            "DECR" => Operator::StringOp(StringOp::Decr),
+            "INCRBY" => Operator::StringOp(StringOp::IncrBy),
+            "DECRBY" => Operator::StringOp(StringOp::DecrBy),
+            "LPUSH" => Operator::ListOp(ListOp::LPush),
+            "RPUSH" => Operator::ListOp(ListOp::RPush),
+            "LPOP" => Operator::ListOp(ListOp::LPop),
+            "RPOP" => Operator::ListOp(ListOp::RPop),
+            "SADD" => Operator::SetOp(SetOp::SAdd),
+            "SREM" => Operator::SetOp(SetOp::SRem),
+            "SISMEMBER" => Operator::SetOp(SetOp::SIsMember),
+            "SMEMBERS" => Operator::SetOp(SetOp::SMembers),
+            "HGET" => Operator::HashOp(HashOp::HGet),
+            "HSET" => Operator::HashOp(HashOp::HSet),
+            "HDEL" => Operator::HashOp(HashOp::HDel),
+            "QUIT" => Operator::MetaOp(MetaOp::Quit),
+            _ => Operator::MetaOp(MetaOp::Unrecognized),
+        };
     }
     while let Some(chunk) = chunks.next() {
         result.argv.push(chunk.to_string());
@@ -313,6 +315,7 @@ async fn validate_hash_op(op: HashOp, argv: Vec<String>) -> Request {
 async fn validate_meta_op(op: MetaOp, _argv: Vec<String>) -> Request {
     match op {
         MetaOp::NoOp => Request::NoOp,
+        MetaOp::Quit => Request::Quit,
         MetaOp::Unrecognized => Request::Invalid {
             error: format!("Unrecognized operator"),
         },

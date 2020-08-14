@@ -67,6 +67,7 @@ pub enum Request {
         field: String,
     },
     NoOp,
+    Quit,
     Invalid {
         error: String,
     },
@@ -93,6 +94,10 @@ pub fn f_nil() -> String {
 
 pub fn f_noop() -> String {
     '\u{0}'.to_string()
+}
+
+pub fn f_quit() -> String {
+    "Goodbye!".to_string()
 }
 
 pub fn f_empty() -> String {
@@ -211,8 +216,9 @@ pub async fn execute(req: Request, store: &mut impl Store) -> Response {
             let del = store.hdel(key, field).unwrap();
             Response { body: f_uint(del) }
         }
-        Request::NoOp => return Response { body: f_noop() },
-        Request::Invalid { error } => return Response { body: f_err(error) },
+        Request::NoOp => Response { body: f_noop() },
+        Request::Quit => Response { body: f_quit() },
+        Request::Invalid { error } => Response { body: f_err(error) },
     }
 }
 

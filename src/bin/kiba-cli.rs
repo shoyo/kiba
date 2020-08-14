@@ -40,5 +40,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         stream.read(&mut rbuf[..]).await?;
 
         println!("{}\n", String::from_utf8_lossy(&rbuf));
+        if wbuf.trim_matches(|c: char| c.is_whitespace()).to_uppercase() == "QUIT" {
+            println!("** Goodbye!");
+            std::process::exit(0);
+        }
     }
 }
