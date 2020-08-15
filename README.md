@@ -1,4 +1,4 @@
-# Kiba: A fast, multithreaded, in-memory database
+# Kiba: A fast, multithreaded, NoSQL database
 
 ## About
 Kiba is an in-memory database that's designed to be extremely performant and simple to use.
