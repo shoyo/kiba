@@ -1,74 +1,5 @@
 use crate::executor::Request;
-
-#[derive(Debug)]
-struct LexerResult {
-    op: Operator,
-    argv: Vec<String>,
-}
-
-impl LexerResult {
-    fn new() -> Self {
-        Self {
-            op: Operator::MetaOp(MetaOp::NoOp),
-            argv: Vec::new(),
-        }
-    }
-}
-
-#[derive(Clone, Debug, PartialEq)]
-enum Operator {
-    MetaOp(MetaOp),
-    MiscOp(MiscOp),
-    StringOp(StringOp),
-    ListOp(ListOp),
-    SetOp(SetOp),
-    HashOp(HashOp),
-}
-
-#[derive(Clone, Debug, PartialEq)]
-enum MetaOp {
-    NoOp,
-    Unrecognized,
-    Quit,
-}
-
-#[derive(Clone, Debug, PartialEq)]
-enum MiscOp {
-    Ping,
-}
-
-#[derive(Clone, Debug, PartialEq)]
-enum StringOp {
-    Get,
-    Set,
-    Incr,
-    Decr,
-    IncrBy,
-    DecrBy,
-}
-
-#[derive(Clone, Debug, PartialEq)]
-enum ListOp {
-    LPush,
-    RPush,
-    LPop,
-    RPop,
-}
-
-#[derive(Clone, Debug, PartialEq)]
-enum SetOp {
-    SAdd,
-    SRem,
-    SIsMember,
-    SMembers,
-}
-
-#[derive(Clone, Debug, PartialEq)]
-enum HashOp {
-    HGet,
-    HSet,
-    HDel,
-}
+use crate::lexer::*;
 
 fn invalid_argc_request(expected: usize, actual: usize) -> Request {
     Request::Invalid {
@@ -77,43 +8,6 @@ fn invalid_argc_request(expected: usize, actual: usize) -> Request {
             expected, actual
         ),
     }
-}
-
-async fn parse(bytes: &[u8]) -> LexerResult {
-    let mut result = LexerResult::new();
-    let text = std::str::from_utf8(bytes).unwrap();
-    let mut chunks = text
-        .split(|c: char| c.is_whitespace() || c == '\u{0}')
-        .filter(|s| !s.is_empty());
-
-    if let Some(chunk) = chunks.next() {
-        result.op = match chunk.to_uppercase().as_str() {
-            "PING" => Operator::MiscOp(MiscOp::Ping),
-            "GET" => Operator::StringOp(StringOp::Get),
-            "SET" => Operator::StringOp(StringOp::Set),
-            "INCR" => Operator::StringOp(StringOp::Incr),
-            "DECR" => Operator::StringOp(StringOp::Decr),
-            "INCRBY" => Operator::StringOp(StringOp::IncrBy),
-            "DECRBY" => Operator::StringOp(StringOp::DecrBy),
-            "LPUSH" => Operator::ListOp(ListOp::LPush),
-            "RPUSH" => Operator::ListOp(ListOp::RPush),
-            "LPOP" => Operator::ListOp(ListOp::LPop),
-            "RPOP" => Operator::ListOp(ListOp::RPop),
-            "SADD" => Operator::SetOp(SetOp::SAdd),
-            "SREM" => Operator::SetOp(SetOp::SRem),
-            "SISMEMBER" => Operator::SetOp(SetOp::SIsMember),
-            "SMEMBERS" => Operator::SetOp(SetOp::SMembers),
-            "HGET" => Operator::HashOp(HashOp::HGet),
-            "HSET" => Operator::HashOp(HashOp::HSet),
-            "HDEL" => Operator::HashOp(HashOp::HDel),
-            "QUIT" => Operator::MetaOp(MetaOp::Quit),
-            _ => Operator::MetaOp(MetaOp::Unrecognized),
-        };
-    }
-    while let Some(chunk) = chunks.next() {
-        result.argv.push(chunk.to_string());
-    }
-    result
 }
 
 async fn validate_misc_op(op: MiscOp, argv: Vec<String>) -> Request {
@@ -322,20 +216,20 @@ async fn validate_meta_op(op: MetaOp, _argv: Vec<String>) -> Request {
     }
 }
 
-async fn validate(result: LexerResult) -> Request {
-    match result.op {
-        Operator::MiscOp(op) => validate_misc_op(op, result.argv).await,
-        Operator::StringOp(op) => validate_string_op(op, result.argv).await,
-        Operator::ListOp(op) => validate_list_op(op, result.argv).await,
-        Operator::SetOp(op) => validate_set_op(op, result.argv).await,
-        Operator::HashOp(op) => validate_hash_op(op, result.argv).await,
-        Operator::MetaOp(op) => validate_meta_op(op, result.argv).await,
+async fn parse(tokens: LexerResult) -> Request {
+    match tokens.op {
+        Operator::MiscOp(op) => validate_misc_op(op, tokens.argv).await,
+        Operator::StringOp(op) => validate_string_op(op, tokens.argv).await,
+        Operator::ListOp(op) => validate_list_op(op, tokens.argv).await,
+        Operator::SetOp(op) => validate_set_op(op, tokens.argv).await,
+        Operator::HashOp(op) => validate_hash_op(op, tokens.argv).await,
+        Operator::MetaOp(op) => validate_meta_op(op, tokens.argv).await,
     }
 }
 
 pub async fn parse_request(bytes: &[u8]) -> Request {
-    let result = parse(bytes).await;
-    validate(result).await
+    let tokens = tokenize(bytes).await;
+    parse(tokens).await
 }
 
 #[cfg(test)]
@@ -371,14 +265,57 @@ mod tests {
                 error: "Unexpected number of arguments. Expected 1, got 0".to_string()
             }
         );
+        // Mixed case
         assert_eq!(
             parse_request(b"gEt foo").await,
             Request::Get {
                 key: "foo".to_string()
             }
         );
+        // Quotations containing whitespace
+        assert_eq!(
+            parse_request(b"get \"foo bar\"").await,
+            Request::Get {
+                key: "foo bar".to_string()
+            }
+        );
+        // Operator and operand in quotes
+        assert_eq!(
+            parse_request(b"\"GET\" \"foo\"").await,
+            Request::Get {
+                key: "foo".to_string()
+            }
+        );
+        // No closing quotation mark
+        assert_eq!(
+            parse_request(b"GET \"foo").await,
+            Request::Get {
+                key: "foo".to_string()
+            }
+        );
+        // Backslash-quote to include quote
+        assert_eq!(
+            parse_request(b"GET \\\"foo").await,
+            Request::Get {
+                key: "\\\"foo".to_string()
+            }
+        );
         assert_eq!(
             parse_request(b"set foo bar").await,
+            Request::Set {
+                key: "foo".to_string(),
+                val: "bar".to_string()
+            }
+        );
+        assert_eq!(
+            parse_request(b"set \"foo\" \"bar\"").await,
+            Request::Set {
+                key: "foo".to_string(),
+                val: "bar".to_string()
+            }
+        );
+        assert_eq!(
+            parse_request(b"set foo \"bar").await,
             Request::Set {
                 key: "foo".to_string(),
                 val: "bar".to_string()
@@ -452,6 +389,13 @@ mod tests {
     async fn test_parse_request_lists() {
         assert_eq!(
             parse_request(b"LPUSH foo apples").await,
+            Request::LPush {
+                key: "foo".to_string(),
+                val: "apples".to_string()
+            }
+        );
+        assert_eq!(
+            parse_request(b"LPUSH foo \"apples\"").await,
             Request::LPush {
                 key: "foo".to_string(),
                 val: "apples".to_string()

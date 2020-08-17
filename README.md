@@ -101,14 +101,14 @@ kiba> smembers colors
 
 Hashes:
 ```
-kiba> hset user:321 username foobar
+kiba> hset user:321 name "John Smith"
 (integer) 1
 
 kiba> hset user:321 date_joined 2020-01-01
 (integer) 1
 
 kiba> hget user:321 username
-"foobar"
+"John Smith"
 
 kiba> hget user:321 date_joined
 "2020-01-01"
