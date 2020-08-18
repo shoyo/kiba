@@ -1,4 +1,4 @@
-# Kiba: A fast, multithreaded, NoSQL database
+# Kiba: An in-memory, multithreaded key-value store
 
 ## About
 Kiba is an in-memory database that's designed to be extremely performant and simple to use.
@@ -31,10 +31,47 @@ To spin up Kiba with default settings, run:
 % cd target/release
 % ./kiba
 ```
-You can interact with the instance through a CLI by opening another terminal and running:
+Alternatively, you can specify custom settings in the config file `kiba.conf` and pass it in as a command-line argument:
+```
+% ./kiba /path/to/kiba.conf
+```
+You can interact with the server instance through a CLI by opening another terminal and running:
 ```
 % cd target/release
 % ./kiba-cli
+```
+Alternatively, you can specify the URL of the server you're connecting to (if you've changed it from the default) by passing it in as a command-line argument:
+```
+% ./kiba-cli <hostname>:<port>
+```
+
+## Docker
+You can build and run a Kiba server instance inside a Docker container.  
+
+To pull the image locally, run:
+```
+% docker pull shoyo64/kiba:0.1
+```
+
+To run a Kiba server instance in a Docker container, run:
+```
+% docker run -p 6464:6464 --name kiba kiba:0.1
+```
+Start and stop the server instance (respectively) with:
+```
+% docker start kiba
+% docker stop kiba
+```
+
+You can then connect to the container running on the host machine through the CLI as before:
+```
+% ./kiba-cli
+```
+
+(Optional) Instead of pulling from Docker Hub, you can also clone the `Dockerfile` in this repository and build it yourself:
+```
+% docker build -t <tagname> .
+% docker run -p <host_port>:6464 --name <name> <tagname>
 ```
 
 ## Examples
@@ -42,58 +79,58 @@ The following shows some basic examples of interacting with an instance through 
 
 Strings:
 ```
-kiba> set foo bar
+kiba> SET name "FOO BAR"
 OK
 
-kiba> get foo
-"bar"
+kiba> GET name
+"FOO BAR"
 
-kiba> get bar
+kiba> GET bar
 (nil)
 
-kiva> set counter 9999
+kiva> SET counter 9999
 OK
 
-kiba> incr counter
+kiba> INCR counter
 (integer) 10000
 
-kiba> decrby counter 3000
+kiba> DECRBY counter 3000
 (integer) 7000
 ```
 
 Lists:
 ```
-kiba> lpush letters b
+kiba> LPUSH letters b
 (integer) 1
 
-kiba> lpush letters a
+kiba> LPUSH letters a
 (integer) 2
 
-kiba> rpush letters c
+kiba> RPUSH letters c
 (integer) 3
 
-kiba> lpop letters
+kiba> LPOP letters
 "a"
 
-kiba> lpop letters
+kiba> LPOP letters
 "b"
 
-kiba> lpop letters
+kiba> LPOP letters
 "c"
 ```
 
 Sets:
 ```
-kiba> sadd colors red
+kiba> SADD colors red
 (integer) 1
 
-kiba> sadd colors blue
+kiba> SADD colors blue
 (integer) 2
 
-kiba> sadd colors green
+kiba> SADD colors green
 (integer) 3
 
-kiba> smembers colors
+kiba> SMEMBERS colors
 1) blue
 2) green
 3) red
@@ -101,16 +138,16 @@ kiba> smembers colors
 
 Hashes:
 ```
-kiba> hset user:321 name "John Smith"
+kiba> HSET user:321 name "John Smith"
 (integer) 1
 
-kiba> hset user:321 date_joined 2020-01-01
+kiba> HSET user:321 date_joined 2020-01-01
 (integer) 1
 
-kiba> hget user:321 username
+kiba> HGET user:321 username
 "John Smith"
 
-kiba> hget user:321 date_joined
+kiba> HGET user:321 date_joined
 "2020-01-01"
 ```
 
