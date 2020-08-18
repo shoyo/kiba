@@ -17,9 +17,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("Kiba CLI 0.1 (unstable)");
     println!("===========================");
 
-    let url = "127.0.0.1:6464";
-    let mut stream = TcpStream::connect(url).await?;
+    let argv: Vec<String> = std::env::args().collect();
+    let url = match argv.len() {
+        1 => "127.0.0.1:6464",
+        _ => &argv[1],
+    };
+    println!("** Attempting to connect to: {}", url);
 
+    let mut stream = TcpStream::connect(url).await?;
     println!(
         "** Successfully established outbound TCP connection with: {}",
         url
