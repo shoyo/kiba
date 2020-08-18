@@ -1,6 +1,5 @@
 use std::iter::Peekable;
 use std::str::Chars;
-use log::error;
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum Operator {
@@ -58,18 +57,22 @@ pub enum HashOp {
 }
 
 #[derive(Debug)]
-struct Lexer<'a> {
+pub struct Lexer<'a> {
+    input: &'a str,
+    pos: usize,
     stream: Peekable<Chars<'a>>,
 }
 
 impl<'a> Lexer<'a> {
-    fn new(input: &'a str) -> Self {
+    pub fn new(input: &'a str) -> Self {
         Self {
+            input,
+            pos: 0,
             stream: input.chars().peekable(),
         }
     }
 
-    fn tokenize(&mut self) -> LexerResult {
+    pub fn tokenize(&mut self) -> LexerResult<'_> {
         let mut result = LexerResult::new();
         if let Some(op) = self.next_token() {
             result.op = match op.to_uppercase().as_str() {
@@ -96,12 +99,12 @@ impl<'a> Lexer<'a> {
             }
         }
         while let Some(token) = self.next_token() {
-            result.argv.push(token)
+            result.argv.push(token);
         }
         result
     }
 
-    fn next_token(&mut self) -> Option<String> {
+    fn next_token(&mut self) -> Option<&str> {
         self.consume_whitespace();
         if let Some(ch) = self.stream.peek() {
             let token = match ch {
@@ -125,75 +128,61 @@ impl<'a> Lexer<'a> {
         }
     }
 
-    fn tokenize_quoted_string(&mut self) -> String {
-        let mut token = String::new();
+    fn tokenize_quoted_string(&mut self) -> &str {
         self.consume_char(); // Consume left quotation mark
+        let i = self.pos;
 
         while let Some(&next) = self.stream.peek() {
             match next == '"' {
                 true => break,
                 false => {
-                    // .unwrap() won't throw error since peek() returned Some()
-                    let ch = self.consume_char().unwrap();
-                    token.push(ch);
+                    self.consume_char();
                 }
             }
         }
 
+        let j = self.pos;
         if let Some(_) = self.stream.peek() {
             self.consume_char(); // Consume right quotation mark
         }
-        token
+
+        &self.input[i..j]
     }
 
-    fn tokenize_string(&mut self) -> String {
-        let mut token = String::new();
+    fn tokenize_string(&mut self) -> &str {
+        let i = self.pos;
         while let Some(&next) = self.stream.peek() {
             match self.is_whitespace(next) {
                 true => break,
                 false => {
-                    // .unwrap() won't throw error since peek() returned Some()
-                    let ch = self.consume_char().unwrap();
-                    token.push(ch);
+                    self.consume_char();
                 }
             }
         }
-        token
+        &self.input[i..self.pos]
     }
 
     fn is_whitespace(&self, ch: char) -> bool {
         ch.is_whitespace() || ch == '\u{0}' || ch == '\n'
     }
 
-    fn consume_char(&mut self) -> Option<char> {
-        self.stream.next()
+    fn consume_char(&mut self) {
+        self.pos += 1;
+        self.stream.next();
     }
-
 }
 
 #[derive(Debug)]
-pub struct LexerResult {
+pub struct LexerResult<'a> {
     pub op: Operator,
-    pub argv: Vec<String>,
+    pub argv: Vec<&'a str>,
 }
 
-impl LexerResult {
+impl<'a> LexerResult<'a> {
     fn new() -> Self {
         Self {
             op: Operator::MetaOp(MetaOp::NoOp),
             argv: Vec::new(),
         }
     }
-}
-
-pub async fn tokenize(bytes: &[u8]) -> LexerResult {
-    let text = match std::str::from_utf8(bytes) {
-        Ok(txt) => txt,
-        Err(_) => {
-            error!("Input bytestream could not be converted into valid UTF-8");
-            std::process::exit(1);
-        }
-    };
-    let mut lexer = Lexer::new(text);
-    lexer.tokenize()
 }
