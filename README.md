@@ -55,7 +55,7 @@ To pull the image locally, run:
 
 To run a Kiba server instance in a Docker container, run:
 ```
-% docker run -p 6464:6464 --name kiba kiba:0.1
+% docker run -p 6464:6464 --name kiba shoyo64/kiba:0.1
 ```
 Start and stop the server instance (respectively) with:
 ```
