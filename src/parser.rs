@@ -297,9 +297,9 @@ mod tests {
         );
         // No closing quotation mark
         assert_eq!(
-            parse_request(b"GET \"foo").await,
+            parse_request(b"GET \"foo bar").await,
             Request::Get {
-                key: "foo".to_string()
+                key: "foo ba".to_string()
             }
         );
         // Backslash-quote to include quote
@@ -327,7 +327,7 @@ mod tests {
             parse_request(b"set foo \"bar").await,
             Request::Set {
                 key: "foo".to_string(),
-                val: "bar".to_string()
+                val: "ba".to_string()
             }
         );
         assert_eq!(
