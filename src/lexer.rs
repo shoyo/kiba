@@ -68,7 +68,7 @@ impl<'a> Lexer<'a> {
         Self { input }
     }
 
-    pub fn tokenize(&mut self) -> LexerResult<'_> {
+    pub async fn tokenize(&mut self) -> LexerResult<'_> {
         let mut result = LexerResult::new();
 
         // Initialize lexer state separate from struct to circumvent

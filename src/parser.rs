@@ -237,7 +237,7 @@ pub async fn parse_request(bytes: &[u8]) -> Request {
         }
     };
     let mut lexer = Lexer::new(text);
-    let tokens = lexer.tokenize();
+    let tokens = lexer.tokenize().await;
     parse(tokens).await
 }
 
