@@ -77,8 +77,10 @@ pub async fn start_server(config: Config) -> Result<(), Box<dyn std::error::Erro
 
         let mut txc = tx.clone();
         let _task = tokio::spawn(async move {
+            // Timeout for terminating after receiving several no-op requests in succession
+            let mut timeout = 10;
+
             loop {
-                // let mut buf = [0; 512 * (1 << 20)];
                 let mut buf = [0; 512];
                 let _ = client.socket.read(&mut buf[..]).await;
 
@@ -86,9 +88,25 @@ pub async fn start_server(config: Config) -> Result<(), Box<dyn std::error::Erro
                 info!("Received a request from client {} ({}):", client.id, &client.addr);
                 info!("  -> \"{:?}\"", &req);
 
-                if req == Request::Quit {
-                    info!("Received a QUIT request from client {} ({})", client.id, &client.addr);
-                    break;
+                match req {
+                    Request::Quit => {
+                        info!(
+                            "Received a QUIT request from client {} ({})",
+                            client.id, &client.addr
+                        );
+                        break;
+                    },
+                    Request::NoOp => {
+                        timeout -= 1;
+                        if timeout <= 0 {
+                            info!(
+                                "Timed out connection due to successive no-ops from client {} ({})",
+                                client.id, &client.addr
+                            );
+                            break;
+                        }
+                    },
+                    _ => timeout = 10,
                 }
 
                 let (send_pipe, recv_pipe) = oneshot::channel();
