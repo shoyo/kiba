@@ -143,11 +143,11 @@ impl<'a> Lexer<'a> {
             }
         }
 
+        let j = *pos;
         if let Some(_) = stream.peek() {
             self.consume_char(pos, stream); // Consume right quotation mark
         }
-
-        &self.input[i..*pos - 1]
+        &self.input[i..j]
     }
 
     fn tokenize_string(&self, pos: &mut usize, stream: &mut Stream) -> &str {

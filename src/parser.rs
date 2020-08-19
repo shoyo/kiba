@@ -299,7 +299,7 @@ mod tests {
         assert_eq!(
             parse_request(b"GET \"foo bar").await,
             Request::Get {
-                key: "foo ba".to_string()
+                key: "foo bar".to_string()
             }
         );
         // Backslash-quote to include quote
@@ -327,7 +327,14 @@ mod tests {
             parse_request(b"set foo \"bar").await,
             Request::Set {
                 key: "foo".to_string(),
-                val: "ba".to_string()
+                val: "bar".to_string()
+            }
+        );
+        assert_eq!(
+            parse_request(b"set foo \"").await,
+            Request::Set {
+                key: "foo".to_string(),
+                val: "".to_string()
             }
         );
         assert_eq!(
