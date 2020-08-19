@@ -1,6 +1,5 @@
 use std::iter::Peekable;
 use std::str::Chars;
-use log::error;
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum Operator {
@@ -57,21 +56,27 @@ pub enum HashOp {
     HDel,
 }
 
+type Stream<'a> = Peekable<Chars<'a>>;
+
 #[derive(Debug)]
-struct Lexer<'a> {
-    stream: Peekable<Chars<'a>>,
+pub struct Lexer<'a> {
+    input: &'a str,
 }
 
 impl<'a> Lexer<'a> {
-    fn new(input: &'a str) -> Self {
-        Self {
-            stream: input.chars().peekable(),
-        }
+    pub fn new(input: &'a str) -> Self {
+        Self { input }
     }
 
-    fn tokenize(&mut self) -> LexerResult {
+    pub fn tokenize(&mut self) -> LexerResult<'_> {
         let mut result = LexerResult::new();
-        if let Some(op) = self.next_token() {
+
+        // Initialize lexer state separate from struct to circumvent
+        // errors due to multiple &mut self references
+        let mut pos = 0;
+        let mut stream = self.input.chars().peekable();
+
+        if let Some(op) = self.next_token(&mut pos, &mut stream) {
             result.op = match op.to_uppercase().as_str() {
                 "PING" => Operator::MiscOp(MiscOp::Ping),
                 "GET" => Operator::StringOp(StringOp::Get),
@@ -95,18 +100,18 @@ impl<'a> Lexer<'a> {
                 _ => Operator::MetaOp(MetaOp::Unrecognized),
             }
         }
-        while let Some(token) = self.next_token() {
-            result.argv.push(token)
+        while let Some(token) = self.next_token(&mut pos, &mut stream) {
+            result.argv.push(token);
         }
         result
     }
 
-    fn next_token(&mut self) -> Option<String> {
-        self.consume_whitespace();
-        if let Some(ch) = self.stream.peek() {
+    fn next_token(&self, pos: &mut usize, stream: &mut Stream) -> Option<&str> {
+        self.consume_whitespace(pos, stream);
+        if let Some(ch) = stream.peek() {
             let token = match ch {
-                '"' => self.tokenize_quoted_string(),
-                _ => self.tokenize_string(),
+                '"' => self.tokenize_quoted_string(pos, stream),
+                _ => self.tokenize_string(pos, stream),
             };
             Some(token)
         } else {
@@ -114,86 +119,71 @@ impl<'a> Lexer<'a> {
         }
     }
 
-    fn consume_whitespace(&mut self) {
-        while let Some(&next) = self.stream.peek() {
+    fn consume_whitespace(&self, pos: &mut usize, stream: &mut Stream) {
+        while let Some(&next) = stream.peek() {
             match self.is_whitespace(next) {
                 true => {
-                    self.consume_char();
+                    self.consume_char(pos, stream);
                 }
                 false => break,
             }
         }
     }
 
-    fn tokenize_quoted_string(&mut self) -> String {
-        let mut token = String::new();
-        self.consume_char(); // Consume left quotation mark
+    fn tokenize_quoted_string(&self, pos: &mut usize, stream: &mut Stream) -> &str {
+        self.consume_char(pos, stream); // Consume left quotation mark
+        let i = *pos;
 
-        while let Some(&next) = self.stream.peek() {
+        while let Some(&next) = stream.peek() {
             match next == '"' {
                 true => break,
                 false => {
-                    // .unwrap() won't throw error since peek() returned Some()
-                    let ch = self.consume_char().unwrap();
-                    token.push(ch);
+                    self.consume_char(pos, stream);
                 }
             }
         }
 
-        if let Some(_) = self.stream.peek() {
-            self.consume_char(); // Consume right quotation mark
+        let j = *pos;
+        if let Some(_) = stream.peek() {
+            self.consume_char(pos, stream); // Consume right quotation mark
         }
-        token
+        &self.input[i..j]
     }
 
-    fn tokenize_string(&mut self) -> String {
-        let mut token = String::new();
-        while let Some(&next) = self.stream.peek() {
+    fn tokenize_string(&self, pos: &mut usize, stream: &mut Stream) -> &str {
+        let i = *pos;
+        while let Some(&next) = stream.peek() {
             match self.is_whitespace(next) {
                 true => break,
                 false => {
-                    // .unwrap() won't throw error since peek() returned Some()
-                    let ch = self.consume_char().unwrap();
-                    token.push(ch);
+                    self.consume_char(pos, stream);
                 }
             }
         }
-        token
+        &self.input[i..*pos]
     }
 
     fn is_whitespace(&self, ch: char) -> bool {
         ch.is_whitespace() || ch == '\u{0}' || ch == '\n'
     }
 
-    fn consume_char(&mut self) -> Option<char> {
-        self.stream.next()
+    fn consume_char(&self, pos: &mut usize, stream: &mut Stream) {
+        *pos += 1;
+        stream.next();
     }
-
 }
 
 #[derive(Debug)]
-pub struct LexerResult {
+pub struct LexerResult<'a> {
     pub op: Operator,
-    pub argv: Vec<String>,
+    pub argv: Vec<&'a str>,
 }
 
-impl LexerResult {
+impl<'a> LexerResult<'a> {
     fn new() -> Self {
         Self {
             op: Operator::MetaOp(MetaOp::NoOp),
             argv: Vec::new(),
         }
     }
-}
-
-pub async fn tokenize(bytes: &[u8]) -> LexerResult {
-    let text = match std::str::from_utf8(bytes) {
-        Ok(txt) => txt,
-        Err(_) => {
-            error!("Input bytestream could not be converted into valid UTF-8");
-            std::process::exit(1);
-        }
-    };
-    let mut lexer = Lexer::new(text);
-    lexer.tokenize()
 }

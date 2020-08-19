@@ -1,5 +1,6 @@
 use crate::executor::Request;
 use crate::lexer::*;
+use log::error;
 
 fn invalid_argc_request(expected: usize, actual: usize) -> Request {
     Request::Invalid {
@@ -10,7 +11,7 @@ fn invalid_argc_request(expected: usize, actual: usize) -> Request {
     }
 }
 
-async fn validate_misc_op(op: MiscOp, argv: Vec<String>) -> Request {
+async fn validate_misc_op(op: MiscOp, argv: Vec<&str>) -> Request {
     let argc = argv.len();
     match op {
         MiscOp::Ping => {
@@ -22,7 +23,7 @@ async fn validate_misc_op(op: MiscOp, argv: Vec<String>) -> Request {
     }
 }
 
-async fn validate_string_op(op: StringOp, argv: Vec<String>) -> Request {
+async fn validate_string_op(op: StringOp, argv: Vec<&str>) -> Request {
     let argc = argv.len();
     match op {
         StringOp::Get => {
@@ -30,7 +31,7 @@ async fn validate_string_op(op: StringOp, argv: Vec<String>) -> Request {
                 return invalid_argc_request(1, argc);
             }
             Request::Get {
-                key: argv[0].clone(),
+                key: argv[0].to_string(),
             }
         }
         StringOp::Set => {
@@ -38,8 +39,8 @@ async fn validate_string_op(op: StringOp, argv: Vec<String>) -> Request {
                 return invalid_argc_request(2, argc);
             }
             Request::Set {
-                key: argv[0].clone(),
-                val: argv[1].clone(),
+                key: argv[0].to_string(),
+                val: argv[1].to_string(),
             }
         }
         StringOp::Incr => {
@@ -47,7 +48,7 @@ async fn validate_string_op(op: StringOp, argv: Vec<String>) -> Request {
                 return invalid_argc_request(1, argc);
             }
             Request::Incr {
-                key: argv[0].clone(),
+                key: argv[0].to_string(),
             }
         }
         StringOp::Decr => {
@@ -55,7 +56,7 @@ async fn validate_string_op(op: StringOp, argv: Vec<String>) -> Request {
                 return invalid_argc_request(1, argc);
             }
             Request::Decr {
-                key: argv[0].clone(),
+                key: argv[0].to_string(),
             }
         }
         StringOp::IncrBy => {
@@ -65,7 +66,7 @@ async fn validate_string_op(op: StringOp, argv: Vec<String>) -> Request {
             let delta = argv[1].to_string().parse::<i64>();
             match delta {
                 Ok(d) => Request::IncrBy {
-                    key: argv[0].clone(),
+                    key: argv[0].to_string(),
                     delta: d,
                 },
                 Err(_) => Request::Invalid {
@@ -80,7 +81,7 @@ async fn validate_string_op(op: StringOp, argv: Vec<String>) -> Request {
             let delta = argv[1].to_string().parse::<i64>();
             match delta {
                 Ok(d) => Request::DecrBy {
-                    key: argv[0].clone(),
+                    key: argv[0].to_string(),
                     delta: d,
                 },
                 Err(_) => Request::Invalid {
@@ -91,7 +92,7 @@ async fn validate_string_op(op: StringOp, argv: Vec<String>) -> Request {
     }
 }
 
-async fn validate_list_op(op: ListOp, argv: Vec<String>) -> Request {
+async fn validate_list_op(op: ListOp, argv: Vec<&str>) -> Request {
     let argc = argv.len();
     match op {
         ListOp::LPush => {
@@ -99,8 +100,8 @@ async fn validate_list_op(op: ListOp, argv: Vec<String>) -> Request {
                 return invalid_argc_request(2, argc);
             }
             Request::LPush {
-                key: argv[0].clone(),
-                val: argv[1].clone(),
+                key: argv[0].to_string(),
+                val: argv[1].to_string(),
             }
         }
         ListOp::RPush => {
@@ -108,8 +109,8 @@ async fn validate_list_op(op: ListOp, argv: Vec<String>) -> Request {
                 return invalid_argc_request(2, argc);
             }
             Request::RPush {
-                key: argv[0].clone(),
-                val: argv[1].clone(),
+                key: argv[0].to_string(),
+                val: argv[1].to_string(),
             }
         }
         ListOp::LPop => {
@@ -117,7 +118,7 @@ async fn validate_list_op(op: ListOp, argv: Vec<String>) -> Request {
                 return invalid_argc_request(1, argc);
             }
             Request::LPop {
-                key: argv[0].clone(),
+                key: argv[0].to_string(),
             }
         }
         ListOp::RPop => {
@@ -125,13 +126,13 @@ async fn validate_list_op(op: ListOp, argv: Vec<String>) -> Request {
                 return invalid_argc_request(1, argc);
             }
             Request::RPop {
-                key: argv[0].clone(),
+                key: argv[0].to_string(),
             }
         }
     }
 }
 
-async fn validate_set_op(op: SetOp, argv: Vec<String>) -> Request {
+async fn validate_set_op(op: SetOp, argv: Vec<&str>) -> Request {
     let argc = argv.len();
     match op {
         SetOp::SAdd => {
@@ -139,8 +140,8 @@ async fn validate_set_op(op: SetOp, argv: Vec<String>) -> Request {
                 return invalid_argc_request(2, argc);
             }
             Request::SAdd {
-                key: argv[0].clone(),
-                val: argv[1].clone(),
+                key: argv[0].to_string(),
+                val: argv[1].to_string(),
             }
         }
         SetOp::SRem => {
@@ -148,8 +149,8 @@ async fn validate_set_op(op: SetOp, argv: Vec<String>) -> Request {
                 return invalid_argc_request(2, argc);
             }
             Request::SRem {
-                key: argv[0].clone(),
-                val: argv[1].clone(),
+                key: argv[0].to_string(),
+                val: argv[1].to_string(),
             }
         }
         SetOp::SIsMember => {
@@ -157,8 +158,8 @@ async fn validate_set_op(op: SetOp, argv: Vec<String>) -> Request {
                 return invalid_argc_request(2, argc);
             }
             Request::SIsMember {
-                key: argv[0].clone(),
-                val: argv[1].clone(),
+                key: argv[0].to_string(),
+                val: argv[1].to_string(),
             }
         }
         SetOp::SMembers => {
@@ -166,13 +167,13 @@ async fn validate_set_op(op: SetOp, argv: Vec<String>) -> Request {
                 return invalid_argc_request(1, argc);
             }
             Request::SMembers {
-                key: argv[0].clone(),
+                key: argv[0].to_string(),
             }
         }
     }
 }
 
-async fn validate_hash_op(op: HashOp, argv: Vec<String>) -> Request {
+async fn validate_hash_op(op: HashOp, argv: Vec<&str>) -> Request {
     let argc = argv.len();
     match op {
         HashOp::HGet => {
@@ -180,8 +181,8 @@ async fn validate_hash_op(op: HashOp, argv: Vec<String>) -> Request {
                 return invalid_argc_request(2, argc);
             }
             Request::HGet {
-                key: argv[0].clone(),
-                field: argv[1].clone(),
+                key: argv[0].to_string(),
+                field: argv[1].to_string(),
             }
         }
         HashOp::HSet => {
@@ -189,9 +190,9 @@ async fn validate_hash_op(op: HashOp, argv: Vec<String>) -> Request {
                 return invalid_argc_request(3, argc);
             }
             Request::HSet {
-                key: argv[0].clone(),
-                field: argv[1].clone(),
-                val: argv[2].clone(),
+                key: argv[0].to_string(),
+                field: argv[1].to_string(),
+                val: argv[2].to_string(),
             }
         }
         HashOp::HDel => {
@@ -199,14 +200,14 @@ async fn validate_hash_op(op: HashOp, argv: Vec<String>) -> Request {
                 return invalid_argc_request(2, argc);
             }
             Request::HDel {
-                key: argv[0].clone(),
-                field: argv[1].clone(),
+                key: argv[0].to_string(),
+                field: argv[1].to_string(),
             }
         }
     }
 }
 
-async fn validate_meta_op(op: MetaOp, _argv: Vec<String>) -> Request {
+async fn validate_meta_op(op: MetaOp, _argv: Vec<&str>) -> Request {
     match op {
         MetaOp::NoOp => Request::NoOp,
         MetaOp::Quit => Request::Quit,
@@ -216,7 +217,7 @@ async fn validate_meta_op(op: MetaOp, _argv: Vec<String>) -> Request {
     }
 }
 
-async fn parse(tokens: LexerResult) -> Request {
+async fn parse(tokens: LexerResult<'_>) -> Request {
     match tokens.op {
         Operator::MiscOp(op) => validate_misc_op(op, tokens.argv).await,
         Operator::StringOp(op) => validate_string_op(op, tokens.argv).await,
@@ -228,7 +229,15 @@ async fn parse(tokens: LexerResult) -> Request {
 }
 
 pub async fn parse_request(bytes: &[u8]) -> Request {
-    let tokens = tokenize(bytes).await;
+    let text = match std::str::from_utf8(bytes) {
+        Ok(txt) => txt,
+        Err(_) => {
+            error!("Input bytestream could not be converted into valid UTF-8");
+            std::process::exit(1);
+        }
+    };
+    let mut lexer = Lexer::new(text);
+    let tokens = lexer.tokenize();
     parse(tokens).await
 }
 
@@ -288,9 +297,9 @@ mod tests {
         );
         // No closing quotation mark
         assert_eq!(
-            parse_request(b"GET \"foo").await,
+            parse_request(b"GET \"foo bar").await,
             Request::Get {
-                key: "foo".to_string()
+                key: "foo bar".to_string()
             }
         );
         // Backslash-quote to include quote
@@ -319,6 +328,13 @@ mod tests {
             Request::Set {
                 key: "foo".to_string(),
                 val: "bar".to_string()
+            }
+        );
+        assert_eq!(
+            parse_request(b"set foo \"").await,
+            Request::Set {
+                key: "foo".to_string(),
+                val: "".to_string()
             }
         );
         assert_eq!(
