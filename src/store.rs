@@ -228,11 +228,14 @@ pub trait Store {
 
 #[derive(Debug)]
 enum DataType {
-    Null,
     StringType,
     ListType,
     HashType,
     SetType,
+}
+
+macro_rules! string_op {
+    ()
 }
 
 #[derive(Debug)]
@@ -245,6 +248,11 @@ pub struct StdStore {
 }
 
 impl StdStore {
+    fn validate_type(&self, key: &str, expected: DataType) -> bool {
+        let actual = self.namespace.get(key);
+        actual == None || actual == expected
+    }
+
     fn update_int(&mut self, key: String, delta: i64) -> Result<i64> {
         match self.strings.get_mut(&key) {
             Some(val) => match val.to_string().parse::<i64>() {
@@ -295,6 +303,11 @@ impl Store for StdStore {
     // Strings Operations
 
     fn get(&self, key: String) -> Result<Option<String>> {
+        //        if !self.validate(&key, DataType::StringType) {
+        //            return Err(OperationalError {
+        //                message: format!("Value stored at key is not a string"),
+        //            });
+        //        }
         match self.strings.get(&key) {
             Some(val) => Ok(Some(val.to_string())),
             None => Ok(None),
