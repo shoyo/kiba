@@ -10,9 +10,6 @@ It exposes a similar API to [Redis](https://github.com/redis/redis), such as `GE
 shouldn't be trusted in any remotely serious setting. I plan to continue developing its feature set and
 improving reliability so that it'll someday be production-ready.
 
-## Benchmarks
-TODO
-
 ## Building
 Install the Rust toolchain if you haven't already (https://www.rust-lang.org/tools/install).
 
