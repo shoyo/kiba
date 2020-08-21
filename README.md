@@ -85,7 +85,7 @@ kiba> GET name
 kiba> GET bar
 (nil)
 
-kiva> SET counter 9999
+kiba> SET counter 9999
 OK
 
 kiba> INCR counter
