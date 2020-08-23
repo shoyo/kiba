@@ -213,5 +213,5 @@ Kiba is comprised of layers that collectively parse and execute user queries:
 ```
               
 ## Author
-Shoyo Inokuchi (shoyoinokuchi@gmail.com)
+Shoyo Inokuchi (contact@shoyo.dev)
 
