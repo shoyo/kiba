@@ -1,5 +1,5 @@
 # Kiba: An in-memory, multithreaded key-value store
-![github actions](https://github.com/shoyo/kiba/workflows/Rust/badge.svg)
+![github actions](https://github.com/shoyo/kiba/workflows/Build/badge.svg)
 
 ## About
 Kiba is an in-memory database that's designed to be performant and simple to use.
