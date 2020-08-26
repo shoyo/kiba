@@ -1,7 +1,8 @@
 # Kiba: An in-memory, multithreaded key-value store
+![github actions](https://github.com/shoyo/kiba/workflows/Rust/badge.svg)
 
 ## About
-Kiba is an in-memory database that's designed to be extremely performant and simple to use.
+Kiba is an in-memory database that's designed to be performant and simple to use.
 Kiba is fundamentally a key-value store, but supports complex value types such as lists, sets, and hashes.
 It exposes a similar API to [Redis](https://github.com/redis/redis), such as `GET`, `SET`,
 `INCR`, `DECR`, `LPUSH`, `RPUSH`, `SADD`, `SREM`, `HSET`, `HGET` and more.
