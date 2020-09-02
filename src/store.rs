@@ -35,7 +35,7 @@ pub trait Store {
     /// If the key does not hold a string, return an error.
     fn append(&mut self, key: String, val: String) -> Result<String>;
 
-    /// Return the substring of the string stored at key (zero-based index).
+    /// Return the substring of the string stored at key (zero-based index, end-exclusive).
     /// Negative indices refer to the index from the end of the string.
     /// (ex. -1 refers to last index, -2 refers to second-to-last index, etc.)
     /// Out-of-bounds indices do not return an error. Instead, the range is confined
@@ -105,7 +105,7 @@ pub trait Store {
     /// If the key does not hold a list, return an error.
     fn rpop(&mut self, key: String) -> Result<Option<String>>;
 
-    /// Return a subarray of the list stored at key. (zero-based index)
+    /// Return a subarray of the list stored at key. (zero-based index, end-exclusive)
     /// Negative indices refer to the index from the end of the list.
     /// (ex. -1 refers to last index, -2 refers to second-to-last index, etc.)
     /// Out-of-range indices do not return errors. Instead, the range is confined
@@ -123,9 +123,10 @@ pub trait Store {
 
     /// Insert element into list stored at key before or after pivot value.
     /// Return the updated length of the list.
-    /// If the key does not exist, return an error.
+    /// If the pivot was not found, return -1.
+    /// If the key does not exist, do nothing and return 0.
     /// If the key does not hold a list, return an error.
-    fn linsert(&mut self, key: String, pivot: String, before: bool) -> Result<u64>;
+    fn linsert(&mut self, key: String, val: String, pivot: String, after: bool) -> Result<i64>;
 
     /// Return the length of the list stored at key.
     /// If the key does not exist, return 0.
@@ -174,7 +175,7 @@ pub trait Store {
 
     /// Similar to sinter(), but stores the resulting set at dest.
     /// If dest already exists and holds a set, it is overwritten.
-    /// If dest does not hold a key, return an error.
+    /// If dest does not hold a set, return an error.
     fn sinterstore(&mut self, dest: String, key1: String, key2: String) -> Result<u64>;
 
     // Hashes Operations
@@ -234,10 +235,6 @@ enum DataType {
     SetType,
 }
 
-macro_rules! string_op {
-    ()
-}
-
 #[derive(Debug)]
 pub struct StdStore {
     namespace: HashMap<String, DataType>,
@@ -250,7 +247,7 @@ pub struct StdStore {
 impl StdStore {
     fn validate_type(&self, key: &str, expected: DataType) -> bool {
         let actual = self.namespace.get(key);
-        actual == None || actual == expected
+        actual.is_none() || actual.unwrap() == expected
     }
 
     fn update_int(&mut self, key: String, delta: i64) -> Result<i64> {
@@ -300,14 +297,22 @@ impl Store for StdStore {
         }
     }
 
+    fn del(&mut self, key: String) -> Result<Option<String>> {
+        Ok(None)
+    }
+
+    fn flushdb(&mut self) -> Result<()> {
+        self.namespace.clear();
+        self.strings.clear();
+        self.lists.clear();
+        self.hashes.clear();
+        self.sets.clear();
+        Ok(())
+    }
+
     // Strings Operations
 
     fn get(&self, key: String) -> Result<Option<String>> {
-        //        if !self.validate(&key, DataType::StringType) {
-        //            return Err(OperationalError {
-        //                message: format!("Value stored at key is not a string"),
-        //            });
-        //        }
         match self.strings.get(&key) {
             Some(val) => Ok(Some(val.to_string())),
             None => Ok(None),
@@ -318,6 +323,45 @@ impl Store for StdStore {
         match self.strings.insert(key, val) {
             Some(val) => Ok(Some(val)),
             None => Ok(None),
+        }
+    }
+
+    fn append(&mut self, key: String, val: String) -> Result<String> {
+        match self.strings.get_mut(&key) {
+            Some(s) => *s.push_str(&val),
+            None => self.strings.insert(key, val),
+        }
+        Ok(self.strings.get(&key).unwrap())
+    }
+
+    fn getrange(&self, key: String, start: i64, end: i64) -> Result<Option<String>> {
+        match self.strings.get(&key) {
+            Some(s) => {
+                let size = s.len();
+                if start >= size {
+                    start = size - 1;
+                } else {
+                    start = (size + start) % size;
+                }
+                if end >= size {
+                    end = size - 1;
+                } else {
+                    end = (size + end) % size;
+                }
+
+                if start >= end {
+                    Ok("".to_string())
+                }
+                Ok(Some(s[start..end].to_string()))
+            }
+            None => Ok(None),
+        }
+    }
+
+    fn strlen(&self, key: String) -> Result<u64> {
+        match self.strings.get(&key) {
+            Some(s) => s.len(),
+            None => 0,
         }
     }
 
@@ -383,6 +427,79 @@ impl Store for StdStore {
         }
     }
 
+    fn lrange(&self, key: String, start: i64, end: i64) -> Result<Vec<String>> {
+        match self.lists.get(&key) {
+            Some(list) => {
+                let size = list.len();
+                if start >= size {
+                    start = size - 1;
+                } else {
+                    start = (size + start) % size;
+                }
+                if end >= size {
+                    end = size - 1;
+                } else {
+                    end = (size + end) % size;
+                }
+
+                if start >= end {
+                    Ok(vec![])
+                }
+                let list = &list[start..end]
+                    .map(|s| s.to_string())
+                    .collect::<Vec<String>>();
+                Ok(list)
+            }
+            None => Ok(None),
+        }
+    }
+
+    fn lindex(&self, key: String, index: i64) -> Result<Option<String>> {
+        match self.lists.get(&key) {
+            Some(list) => {
+                let size = list.len();
+                if index >= size {
+                    Ok(None)
+                }
+                if index < 0 {
+                    index = (size + index) % size;
+                }
+                Ok(Some(list[index]))
+            }
+            None => Ok(None),
+        }
+    }
+
+    fn linsert(&mut self, key: String, val: String, pivot: String, after: bool) -> Result<i64> {
+        match self.lists.get(&key) {
+            Some(list) => {
+                let idx = -1;
+                for i in 0..list.len() {
+                    if list[i] == pivot {
+                        if after {
+                            idx = i + 1;
+                        } else {
+                            idx = i;
+                        }
+                    }
+                }
+                if idx == -1 {
+                    Ok(-1)
+                }
+                list.insert(idx, val);
+                Ok(list.len())
+            }
+            None => Ok(0),
+        }
+    }
+
+    fn llen(&self, key: String) -> Result<u64> {
+        match self.lists.get(&key) {
+            Some(list) => Ok(list.len()),
+            None => Ok(0),
+        }
+    }
+
     /// Sets Operations
 
     fn sadd(&mut self, key: String, val: String) -> Result<u64> {
@@ -424,6 +541,49 @@ impl Store for StdStore {
         }
     }
 
+    fn sinter(&self, key1: String, key2: String) -> Result<Vec<String>> {
+        let set1;
+        match self.sets.get(&key1) {
+            Some(set) => set1 = set,
+            None => return Ok(vec![]),
+        }
+        let set2;
+        match self.sets.get(&key2) {
+            Some(set) => set2 = set,
+            None => return Ok(vec![]),
+        }
+        let inter: Vec<String> = set1.intersection(&set2).collect();
+        Ok(inter)
+    }
+
+    fn sunion(&self, key1: String, key2: String) -> Result<Vec<String>> {
+        let set1 = self.sets.get(&key1);
+        let set2 = self.sets.get(&key2);
+        if set1.is_none() && set2.is_none() {
+            Ok(vec![])
+        } else if set1.is_none() {
+            let set: Vec<String> = set2.unwrap().iter().collect();
+            Ok(set)
+        } else if set2.is_none() {
+            let set: Vec<String> = set1.unwrap().iter().collect();
+            Ok(set)
+        } else {
+            set1 = set1.unwrap();
+            set2 = set2.unwrap();
+            let set: Vec<String> = set1.union(&set2).collect();
+            Ok(set);
+        }
+    }
+
+    fn sinterstore(&mut self, dest: String, key1: String, key2: String) -> Result<u64> {
+        let inter = self.get_inter(key1, key2);
+        match self.sets.get_mut(&dest) {
+            Some(set) => *set = inter,
+            None => self.sets.insert(dest, inter),
+        }
+        Ok(inter.len())
+    }
+
     /// Hashes Operations
 
     fn hget(&self, key: String, field: String) -> Result<Option<String>> {
@@ -457,6 +617,13 @@ impl Store for StdStore {
             None => Ok(0),
         }
     }
+
+    fn hincrby(&mut self, key: String, field: String, delta: i64) -> Result<i64> {}
+
+    fn hlen(&self, key: String) -> Result<u64> {}
+    fn hstrlen(&self, key: String, field: String) -> Result<u64> {}
+    fn hgetall(&self, key: String) -> Result<Vec<String>> {}
+    fn hvals(&self, key: String) -> Result<Vec<String>> {}
 }
 
 #[derive(Debug, Clone)]
