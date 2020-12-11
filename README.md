@@ -175,11 +175,11 @@ Kiba is comprised of layers that collectively parse and execute user queries:
                                  unrecognized and empty inputs as no-ops.
 
                                  Passes along a `LexerResult` struct to the
-                                 validator for more rigorous validation.
+                                 parser for more rigorous validation.
 ----------------------------
-                               PRIMARY TASK: Validate the semantics of the user
-                                 query and construct a corresponding request to
-                                 be executed.
+                               PRIMARY TASK: Parse the query, validate its
+                                 semantics, and construct a corresponding request
+                                 to be executed.
 
                                  Checks that for a given operator, its arguments
                                  have the correct length and data types.
@@ -209,7 +209,7 @@ Kiba is comprised of layers that collectively parse and execute user queries:
           Store
     (source of truth)            Provides functions that are called by the
                                  executor.  Simply returns a result or an error
-                                 according to its defined API.
+                                 according to its defined spec.
 ----------------------------
 ```
               
